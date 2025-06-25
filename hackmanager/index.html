@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HackManager - Hackathon Project Planner</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-blue-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-6">
+            <h1 class="text-3xl font-bold">HackManager</h1>
+            <p class="text-blue-100 mt-1">Your Hackathon Project Planner</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Team & Hackathon Setup Section -->
+        <section id="setup-section" class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Team & Hackathon Setup</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Hackathon Details -->
+                <div id="hackathon-details">
+                    <h3 class="text-lg font-medium mb-3 text-gray-700">Hackathon Details</h3>
+                    <!-- Form inputs placeholder -->
+                    <div class="space-y-3">
+                        <!-- Start date input placeholder -->
+                        <!-- Duration input placeholder -->
+                    </div>
+                </div>
+                
+                <!-- Team Members -->
+                <div id="team-members">
+                    <h3 class="text-lg font-medium mb-3 text-gray-700">Team Members</h3>
+                    <!-- Team members list placeholder -->
+                    <div class="space-y-2">
+                        <!-- Team member inputs placeholder -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Project Idea Section -->
+        <section id="project-idea-section" class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Project Idea</h2>
+            <div class="space-y-4">
+                <!-- Project idea input placeholder -->
+                <!-- Generate tasks button placeholder -->
+            </div>
+        </section>
+
+        <!-- Calendar View Section -->
+        <section id="calendar-section" class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Calendar View</h2>
+            <div id="calendar-container" class="min-h-[400px]">
+                <!-- Calendar will be rendered here -->
+            </div>
+        </section>
+
+        <!-- All Tasks Section -->
+        <section id="tasks-section" class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800">All Tasks</h2>
+            <div id="tasks-container">
+                <!-- Tasks list will be rendered here -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Task Edit Modal (Hidden by default) -->
+    <div id="task-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <!-- Modal content placeholder -->
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="script.js"></script>
+</body>
+</html>
