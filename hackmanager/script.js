@@ -1,5 +1,6 @@
 // HackManager - Main JavaScript File
-
+//would hackatime work properly now? wakatime must be my saviour 
+//gottaworknowwakawakwakakaks so, you gotta work now man why will you not.
 
 // Application State
 const app = {
@@ -25,7 +26,7 @@ const app = {
         currentView: 'week' // 'week' or 'month'
     }
 };
-//waakatime please start working again my friend
+//waakatime please start working again my frien
 // DOM Elements (will be populated after DOMContentLoaded)
 const elements = {};
 
