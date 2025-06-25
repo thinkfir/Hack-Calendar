@@ -11,66 +11,147 @@
     <!-- Custom Styles -->
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <!-- Header -->
-    <header class="bg-blue-600 text-white shadow-lg">
-        <div class="container mx-auto px-4 py-6">
-            <h1 class="text-3xl font-bold">HackManager</h1>
-            <p class="text-blue-100 mt-1">Your Hackathon Project Planner</p>
+<body class="bg-gray-50 min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white shadow-lg h-screen fixed left-0 top-0" style="position: fixed; left: 0; top: 0; width: 256px; height: 100vh; background-color: white; box-shadow: 2px 0 4px rgba(0,0,0,0.1); z-index: 50;">
+        <div class="p-6 bg-blue-600 text-white">
+            <h1 class="text-2xl font-bold">HackManager</h1>
+            <p class="text-blue-100 text-sm mt-1">Project Planner</p>
         </div>
-    </header>
+        
+        <nav class="mt-6">
+            <a href="#" data-page="ai-assistant" class="nav-link active flex items-center px-6 py-3 text-gray-700 hover:bg-gray-100 transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+                AI Assistant
+            </a>
+            
+            <a href="#" data-page="calendar" class="nav-link flex items-center px-6 py-3 text-gray-700 hover:bg-gray-100 transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                Calendar & Tasks
+            </a>
+            
+            <a href="#" data-page="team" class="nav-link flex items-center px-6 py-3 text-gray-700 hover:bg-gray-100 transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                </svg>
+                Team Setup
+            </a>
+            
+            <a href="#" data-page="settings" class="nav-link flex items-center px-6 py-3 text-gray-700 hover:bg-gray-100 transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                Settings
+            </a>
+        </nav>
+    </aside>
 
-    <!-- Main Content -->
-    <main class="container mx-auto px-4 py-8">
-        <!-- Team & Hackathon Setup Section -->
-        <section id="setup-section" class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Team & Hackathon Setup</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Hackathon Details -->
-                <div id="hackathon-details">
-                    <h3 class="text-lg font-medium mb-3 text-gray-700">Hackathon Details</h3>
-                    <!-- Form inputs placeholder -->
-                    <div class="space-y-3">
-                        <!-- Start date input placeholder -->
-                        <!-- Duration input placeholder -->
-                    </div>
-                </div>
+    <!-- Main Content Area -->
+    <main class="flex-1 ml-64">
+        <div class="p-8">
+            <!-- AI Assistant Page (Main) -->
+            <div id="ai-assistant-page" class="page active">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">AI Project Assistant</h2>
                 
-                <!-- Team Members -->
-                <div id="team-members">
-                    <h3 class="text-lg font-medium mb-3 text-gray-700">Team Members</h3>
-                    <!-- Team members list placeholder -->
-                    <div class="space-y-2">
-                        <!-- Team member inputs placeholder -->
+                <div class="bg-white rounded-lg shadow-md p-8">
+                    <div class="mb-6">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-700">Describe Your Project Idea</h3>
+                        <textarea id="project-idea-input"
+                                  class="w-full h-40 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  placeholder="Describe your hackathon project idea in detail. Include the problem you're solving, your target audience, and key features..."></textarea>
+                    </div>
+                    
+                    <button id="generate-tasks-btn" class="btn btn-primary">
+                        Generate Task Breakdown
+                    </button>
+                    
+                    <div id="ai-response" class="mt-8 hidden">
+                        <!-- AI generated tasks will appear here -->
                     </div>
                 </div>
             </div>
-        </section>
 
-        <!-- Project Idea Section -->
-        <section id="project-idea-section" class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Project Idea</h2>
-            <div class="space-y-4">
-                <!-- Project idea input placeholder -->
-                <!-- Generate tasks button placeholder -->
+            <!-- Calendar Page -->
+            <div id="calendar-page" class="page hidden">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Calendar View</h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Calendar -->
+                    <div class="lg:col-span-2 bg-white rounded-lg shadow-md p-6">
+                        <div id="calendar-container" class="min-h-[500px]">
+                            <!-- Calendar will be rendered here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Tasks List -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-700">Tasks</h3>
+                        <div id="tasks-list" class="space-y-2">
+                            <!-- Tasks will be listed here -->
+                        </div>
+                    </div>
+                </div>
             </div>
-        </section>
 
-        <!-- Calendar View Section -->
-        <section id="calendar-section" class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Calendar View</h2>
-            <div id="calendar-container" class="min-h-[400px]">
-                <!-- Calendar will be rendered here -->
+            <!-- Team Setup Page -->
+            <div id="team-page" class="page hidden">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Team Setup</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-700">Team Members</h3>
+                        <div id="team-members-list" class="space-y-3">
+                            <!-- Team members will be listed here -->
+                        </div>
+                        <button id="add-member-btn" class="btn btn-secondary mt-4">
+                            Add Team Member
+                        </button>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-700">Team Statistics</h3>
+                        <div id="team-stats">
+                            <!-- Team statistics will be shown here -->
+                        </div>
+                    </div>
+                </div>
             </div>
-        </section>
 
-        <!-- All Tasks Section -->
-        <section id="tasks-section" class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-800">All Tasks</h2>
-            <div id="tasks-container">
-                <!-- Tasks list will be rendered here -->
+            <!-- Settings Page -->
+            <div id="settings-page" class="page hidden">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Hackathon Settings</h2>
+                
+                <div class="bg-white rounded-lg shadow-md p-6 max-w-2xl">
+                    <form id="settings-form" class="space-y-6">
+                        <div>
+                            <label for="hackathon-name" class="form-label">Hackathon Name</label>
+                            <input type="text" id="hackathon-name" class="form-input" placeholder="Enter hackathon name">
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="start-date" class="form-label">Start Date</label>
+                                <input type="datetime-local" id="start-date" class="form-input">
+                            </div>
+                            
+                            <div>
+                                <label for="duration" class="form-label">Duration (hours)</label>
+                                <input type="number" id="duration" class="form-input" placeholder="48" min="1">
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            Save Settings
+                        </button>
+                    </form>
+                </div>
             </div>
-        </section>
+        </div>
     </main>
 
     <!-- Task Edit Modal (Hidden by default) -->
