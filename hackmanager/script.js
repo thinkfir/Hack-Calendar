@@ -90,16 +90,27 @@ function initializeEventListeners() {
     // AI Mode Selection
     const aiModeRadios = document.querySelectorAll('input[name="ai-mode"]');
     const apiKeySection = document.getElementById('api-key-section');
-    const apiKeyInput = document.getElementById('openai-api-key');
+    const apiKeyInput = document.getElementById('api-key');
+    const providerSelect = document.getElementById('ai-provider');
+    const apiEndpointSection = document.getElementById('api-endpoint-section');
+    const apiEndpointInput = document.getElementById('api-endpoint');
     
     aiModeRadios.forEach(radio => {
         radio.addEventListener('change', (e) => {
-            if (e.target.value === 'openai') {
+            if (e.target.value === 'custom') {
                 apiKeySection.classList.remove('hidden');
-                // Load saved API key if exists
-                const savedKey = localStorage.getItem('openai_api_key');
-                if (savedKey) {
-                    apiKeyInput.value = savedKey;
+                // Load saved settings (default to Groq)
+                const savedProvider = localStorage.getItem('ai_provider') || 'groq';
+                const savedKey = localStorage.getItem(`${savedProvider}_api_key`);
+                const savedEndpoint = localStorage.getItem(`${savedProvider}_endpoint`);
+                
+                providerSelect.value = savedProvider;
+                if (savedKey) apiKeyInput.value = savedKey;
+                if (savedEndpoint && apiEndpointInput) apiEndpointInput.value = savedEndpoint;
+                
+                // Show endpoint field if needed
+                if (savedProvider === 'other') {
+                    apiEndpointSection.classList.remove('hidden');
                 }
             } else {
                 apiKeySection.classList.add('hidden');
@@ -107,11 +118,45 @@ function initializeEventListeners() {
         });
     });
     
+    // Handle provider selection
+    if (providerSelect) {
+        providerSelect.addEventListener('change', (e) => {
+            const provider = e.target.value;
+            localStorage.setItem('ai_provider', provider);
+            
+            // Show/hide endpoint field
+            if (provider === 'other') {
+                apiEndpointSection.classList.remove('hidden');
+            } else {
+                apiEndpointSection.classList.add('hidden');
+            }
+            
+            // Load saved key for this provider
+            const savedKey = localStorage.getItem(`${provider}_api_key`);
+            if (savedKey && apiKeyInput) {
+                apiKeyInput.value = savedKey;
+            } else if (apiKeyInput) {
+                apiKeyInput.value = '';
+            }
+        });
+    }
+    
     // Save API key when changed
     if (apiKeyInput) {
         apiKeyInput.addEventListener('change', (e) => {
+            const provider = providerSelect.value;
             if (e.target.value) {
-                localStorage.setItem('openai_api_key', e.target.value);
+                localStorage.setItem(`${provider}_api_key`, e.target.value);
+            }
+        });
+    }
+    
+    // Save endpoint when changed
+    if (apiEndpointInput) {
+        apiEndpointInput.addEventListener('change', (e) => {
+            const provider = providerSelect.value;
+            if (e.target.value) {
+                localStorage.setItem(`${provider}_endpoint`, e.target.value);
             }
         });
     }
@@ -497,10 +542,11 @@ async function generateTasksFromIdea() {
     // Check which AI mode is selected
     const selectedMode = document.querySelector('input[name="ai-mode"]:checked').value;
     
-    if (selectedMode === 'openai') {
-        const apiKey = document.getElementById('openai-api-key').value;
+    if (selectedMode === 'custom') {
+        const apiKey = document.getElementById('api-key').value;
+        const provider = document.getElementById('ai-provider').value;
         if (!apiKey) {
-            alert('Please enter your OpenAI API key.');
+            alert(`Please enter your ${provider.charAt(0).toUpperCase() + provider.slice(1)} API key.`);
             return;
         }
     }
@@ -508,20 +554,43 @@ async function generateTasksFromIdea() {
     // Save the project idea
     saveProjectIdea(idea);
     
-    // Show loading state
-    elements.aiResponse.innerHTML = '<p class="text-gray-600">🤖 AI is analyzing your project idea and generating a comprehensive task breakdown...</p>';
+    // Show loading state with progress indicator
+    elements.aiResponse.innerHTML = `
+        <div class="space-y-4">
+            <p class="text-gray-600">🤖 AI is analyzing your project idea and generating a comprehensive task breakdown...</p>
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <p id="progress-text" class="text-sm text-gray-500">Initializing...</p>
+        </div>
+    `;
     elements.aiResponse.classList.remove('hidden');
+    
+    // Update progress helper
+    const updateProgress = (percent, text) => {
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        if (progressBar) progressBar.style.width = `${percent}%`;
+        if (progressText) progressText.textContent = text;
+    };
     
     try {
         let generatedTasks;
         
-        if (selectedMode === 'openai') {
-            // Use OpenAI API
-            generatedTasks = await generateTasksWithOpenAI(idea);
+        if (selectedMode === 'custom') {
+            // Use selected AI provider
+            updateProgress(20, 'Connecting to AI provider...');
+            const provider = document.getElementById('ai-provider').value;
+            generatedTasks = await generateTasksWithAI(idea, provider);
         } else {
-            // Use local generation (with simulated delay)
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            generatedTasks = generateProjectTasks(idea);
+            // Use local generation with progress updates
+            updateProgress(10, 'Analyzing project requirements...');
+            await new Promise(resolve => setTimeout(resolve, 100)); // Allow UI to update
+            
+            updateProgress(30, 'Identifying task phases...');
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            generatedTasks = await generateProjectTasksAsync(idea, updateProgress);
         }
         
         // Clear existing tasks
@@ -530,8 +599,16 @@ async function generateTasksFromIdea() {
         // Add all tasks to the app
         generatedTasks.forEach(task => createTask(task));
         
+        // Update progress
+        updateProgress(95, 'Organizing tasks...');
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Display results
         displayGeneratedTasks(generatedTasks);
+        
+        // Update progress
+        updateProgress(100, 'Complete!');
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         // Update team stats
         updateTeamStats();
@@ -548,9 +625,9 @@ async function generateTasksFromIdea() {
     }
 }
 
-// Generate tasks using OpenAI API
-async function generateTasksWithOpenAI(projectIdea) {
-    const apiKey = document.getElementById('openai-api-key').value;
+// Generate tasks using selected AI provider
+async function generateTasksWithAI(projectIdea, provider) {
+    const apiKey = document.getElementById('api-key').value;
     const startDate = new Date(app.hackathonSettings.startDate);
     const totalHours = app.hackathonSettings.duration;
     const teamMembers = app.teamMembers;
@@ -599,28 +676,134 @@ Consider the project type and include relevant tasks like API development, datab
 Return ONLY a JSON array of task objects.`;
 
     try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: 'gpt-4',
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'You are a helpful hackathon project manager that generates detailed task breakdowns. Always respond with valid JSON arrays only.'
-                    },
-                    {
-                        role: 'user',
-                        content: prompt
+        let response;
+        
+        if (provider === 'groq') {
+            // Groq uses OpenAI-compatible format with their fast models
+            response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'mixtral-8x7b-32768', // Groq's fast model
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are a helpful hackathon project manager that generates detailed task breakdowns. Always respond with valid JSON arrays only.'
+                        },
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 2000
+                })
+            });
+        } else if (provider === 'openai') {
+            response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are a helpful hackathon project manager that generates detailed task breakdowns. Always respond with valid JSON arrays only.'
+                        },
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 2000
+                })
+            });
+        } else if (provider === 'anthropic') {
+            response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify({
+                    model: 'claude-3-opus-20240229',
+                    max_tokens: 2000,
+                    temperature: 0.7,
+                    system: 'You are a helpful hackathon project manager that generates detailed task breakdowns. Always respond with valid JSON arrays only.',
+                    messages: [
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ]
+                })
+            });
+        } else if (provider === 'google') {
+            response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `System: You are a helpful hackathon project manager that generates detailed task breakdowns. Always respond with valid JSON arrays only.\n\nUser: ${prompt}`
+                        }]
+                    }],
+                    generationConfig: {
+                        temperature: 0.7,
+                        maxOutputTokens: 2000
                     }
-                ],
-                temperature: 0.7,
-                max_tokens: 2000
-            })
-        });
+                })
+            });
+        } else if (provider === 'cohere') {
+            response = await fetch('https://api.cohere.ai/v1/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'command',
+                    message: prompt,
+                    temperature: 0.7,
+                    preamble: 'You are a helpful hackathon project manager that generates detailed task breakdowns. Always respond with valid JSON arrays only.'
+                })
+            });
+        } else if (provider === 'other') {
+            // Custom endpoint (OpenAI compatible)
+            const endpoint = localStorage.getItem(`${provider}_endpoint`) || 'https://api.openai.com/v1/chat/completions';
+            response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are a helpful hackathon project manager that generates detailed task breakdowns. Always respond with valid JSON arrays only.'
+                        },
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 2000
+                })
+            });
+        }
 
         if (!response.ok) {
             const errorData = await response.json();
@@ -628,7 +811,19 @@ Return ONLY a JSON array of task objects.`;
         }
 
         const data = await response.json();
-        const aiResponse = data.choices[0].message.content;
+        let aiResponse;
+        
+        // Extract response based on provider format
+        if (provider === 'anthropic') {
+            aiResponse = data.content[0].text;
+        } else if (provider === 'google') {
+            aiResponse = data.candidates[0].content.parts[0].text;
+        } else if (provider === 'cohere') {
+            aiResponse = data.text;
+        } else {
+            // OpenAI, Groq, and compatible providers
+            aiResponse = data.choices[0].message.content;
+        }
         
         // Parse the AI response
         let tasks;
@@ -672,15 +867,23 @@ Return ONLY a JSON array of task objects.`;
         return processedTasks;
         
     } catch (error) {
-        console.error('OpenAI API error:', error);
+        console.error(`${provider} API error:`, error);
         // Fallback to local generation
         console.log('Falling back to local task generation');
         return generateProjectTasks(projectIdea);
     }
 }
 
+// Async version of generateProjectTasks to prevent UI blocking
+async function generateProjectTasksAsync(projectIdea, updateProgress) {
+    // Use requestAnimationFrame to keep UI responsive
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    
+    return generateProjectTasks(projectIdea, updateProgress);
+}
+
 // AI-powered task generation based on project idea
-function generateProjectTasks(projectIdea) {
+function generateProjectTasks(projectIdea, updateProgress = null) {
     const tasks = [];
     const startDate = new Date(app.hackathonSettings.startDate);
     const totalHours = app.hackathonSettings.duration;
@@ -708,31 +911,117 @@ function generateProjectTasks(projectIdea) {
     
     // Helper function to assign team members based on skills and availability
     const assignMember = (taskPhase, taskTitle) => {
-        // Map phases to relevant skills
-        const phaseSkillMap = {
-            'planning': ['Project Management', 'Other'],
-            'design': ['UI/UX', 'Frontend', 'Mobile'],
-            'development': ['Frontend', 'Backend', 'Mobile', 'Database', 'AI/ML'],
-            'integration': ['Backend', 'DevOps', 'Database'],
-            'testing': ['Testing', 'DevOps'],
-            'presentation': ['Project Management', 'UI/UX']
+        // More detailed skill mapping based on task titles and content
+        const taskSkillMap = {
+            // Planning tasks
+            'kickoff': ['Project Management', 'Leadership', 'Communication'],
+            'brainstorm': ['Project Management', 'Creative', 'Leadership'],
+            'research': ['Research', 'Analysis', 'Documentation'],
+            'feasibility': ['Technical Lead', 'Architecture', 'Analysis'],
+            
+            // Design tasks
+            'architecture': ['Architecture', 'Backend', 'System Design', 'Technical Lead'],
+            'ui/ux': ['UI Design', 'UX Research', 'Frontend', 'Design', 'Figma', 'Adobe'],
+            'wireframe': ['UI Design', 'UX Research', 'Design', 'Figma'],
+            'database': ['Database', 'Backend', 'SQL', 'NoSQL', 'MongoDB', 'PostgreSQL'],
+            
+            // Development tasks
+            'frontend': ['Frontend', 'React', 'Vue', 'Angular', 'JavaScript', 'TypeScript', 'HTML', 'CSS'],
+            'backend': ['Backend', 'Node.js', 'Python', 'Java', 'API', 'REST APIs', 'GraphQL'],
+            'mobile': ['Mobile', 'Swift', 'Kotlin', 'Flutter', 'React Native', 'iOS', 'Android'],
+            'ai': ['AI/ML', 'Machine Learning', 'Data Science', 'Python', 'TensorFlow', 'PyTorch'],
+            'api': ['Backend', 'REST APIs', 'GraphQL', 'Node.js', 'Express'],
+            
+            // Integration & DevOps
+            'integration': ['Backend', 'DevOps', 'CI/CD', 'Docker', 'Kubernetes'],
+            'deployment': ['DevOps', 'Cloud Computing', 'AWS', 'Azure', 'GCP', 'Docker'],
+            
+            // Testing
+            'testing': ['Testing', 'QA', 'Test Automation', 'Selenium', 'Jest', 'Unit Testing'],
+            'bug': ['Testing', 'Debugging', 'QA'],
+            
+            // Presentation
+            'demo': ['Project Management', 'Presentation', 'Communication'],
+            'presentation': ['UI/UX', 'Design', 'Presentation', 'Communication']
         };
         
-        // Get relevant skills for this phase
-        const relevantSkills = phaseSkillMap[taskPhase] || [];
+        // Extract keywords from task title to determine relevant skills
+        const titleLower = taskTitle.toLowerCase();
+        let relevantSkills = [];
         
-        // Find team members with matching skills
-        let eligibleMembers = app.teamMembers.filter(member =>
-            member.skills.some(skill => relevantSkills.includes(skill))
-        );
+        // Check each keyword mapping
+        Object.entries(taskSkillMap).forEach(([keyword, skills]) => {
+            if (titleLower.includes(keyword)) {
+                relevantSkills = [...new Set([...relevantSkills, ...skills])];
+            }
+        });
         
-        // If no members with matching skills, use all members
-        if (eligibleMembers.length === 0) {
-            eligibleMembers = app.teamMembers;
+        // If no specific skills found, use phase-based defaults
+        if (relevantSkills.length === 0) {
+            const phaseSkillMap = {
+                'planning': ['Project Management', 'Leadership', 'Communication'],
+                'design': ['UI/UX', 'Frontend', 'Design', 'Architecture'],
+                'development': ['Frontend', 'Backend', 'Mobile', 'Database', 'AI/ML'],
+                'integration': ['Backend', 'DevOps', 'Database', 'API'],
+                'testing': ['Testing', 'QA', 'DevOps'],
+                'presentation': ['Project Management', 'UI/UX', 'Communication']
+            };
+            relevantSkills = phaseSkillMap[taskPhase] || [];
         }
         
-        // Rotate among eligible members
-        const selectedMember = eligibleMembers[taskCounter % eligibleMembers.length];
+        // Cache for performance
+        const skillMatchCache = new Map();
+        
+        // Score team members based on skill matches
+        const memberScores = app.teamMembers.map(member => {
+            let score = 0;
+            
+            // Check for exact skill matches (case-insensitive) with caching
+            member.skills.forEach(memberSkill => {
+                const memberSkillLower = memberSkill.toLowerCase();
+                const cacheKey = `${memberSkillLower}-${relevantSkills.join(',')}`;
+                
+                if (skillMatchCache.has(cacheKey)) {
+                    score += skillMatchCache.get(cacheKey);
+                } else {
+                    let skillScore = 0;
+                    for (const requiredSkill of relevantSkills) {
+                        const requiredSkillLower = requiredSkill.toLowerCase();
+                        if (memberSkillLower === requiredSkillLower) {
+                            skillScore = 3; // Exact match
+                            break;
+                        } else if (memberSkillLower.includes(requiredSkillLower) || requiredSkillLower.includes(memberSkillLower)) {
+                            skillScore = Math.max(skillScore, 2); // Partial match
+                        }
+                    }
+                    skillMatchCache.set(cacheKey, skillScore);
+                    score += skillScore;
+                }
+            });
+            
+            // Consider workload balance - prefer members with fewer assigned tasks
+            const assignedTaskCount = tasks.filter(t =>
+                Array.isArray(t.assignedTo) ? t.assignedTo.includes(member.id) : t.assignedTo === member.id
+            ).length;
+            score -= assignedTaskCount * 0.5; // Reduce score for heavily loaded members
+            
+            return { member, score };
+        });
+        
+        // Sort by score and get best match
+        memberScores.sort((a, b) => b.score - a.score);
+        
+        // If top scorer has significantly better match, use them
+        if (memberScores.length > 1 && memberScores[0].score > memberScores[1].score + 1) {
+            return memberScores[0].member.id;
+        }
+        
+        // Otherwise, rotate among top scorers for balance
+        const topScore = memberScores[0].score;
+        const topScorers = memberScores.filter(ms => ms.score >= topScore - 1).map(ms => ms.member);
+        
+        // Rotate among top scorers
+        const selectedMember = topScorers[taskCounter % topScorers.length];
         return selectedMember.id;
     };
     
@@ -765,6 +1054,9 @@ function generateProjectTasks(projectIdea) {
         
         return adjustedTime;
     };
+    
+    // Update progress if callback provided
+    if (updateProgress) updateProgress(40, 'Generating planning tasks...');
     
     // Phase 1: Planning & Research
     const planningHours = Math.floor(totalHours * timeAllocation.planning);
@@ -803,6 +1095,9 @@ function generateProjectTasks(projectIdea) {
     currentTime += task2Hours;
     taskCounter++;
     
+    // Update progress
+    if (updateProgress) updateProgress(50, 'Creating design and architecture tasks...');
+    
     // Phase 2: Design & Architecture
     const designHours = Math.floor(totalHours * timeAllocation.design);
     
@@ -829,6 +1124,9 @@ function generateProjectTasks(projectIdea) {
     });
     currentTime += designHours;
     taskCounter += 2;
+    
+    // Update progress
+    if (updateProgress) updateProgress(60, 'Planning development tasks...');
     
     // Phase 3: Core Development
     const devHours = Math.floor(totalHours * timeAllocation.development);
@@ -916,6 +1214,9 @@ function generateProjectTasks(projectIdea) {
     currentTime += devHours;
     taskCounter++;
     
+    // Update progress
+    if (updateProgress) updateProgress(80, 'Adding integration and testing phases...');
+    
     // Phase 4: Integration & Testing
     const integrationHours = Math.floor(totalHours * timeAllocation.integration);
     
@@ -947,6 +1248,9 @@ function generateProjectTasks(projectIdea) {
     });
     currentTime += testingHours;
     taskCounter++;
+    
+    // Update progress
+    if (updateProgress) updateProgress(90, 'Finalizing presentation tasks...');
     
     // Phase 6: Presentation Preparation
     const presentationHours = Math.floor(totalHours * timeAllocation.presentation);
@@ -1939,7 +2243,12 @@ function clearLocalStorage() {
     if (confirm('Are you sure you want to clear all data and reset the application? This action cannot be undone.')) {
         // Clear all stored data
         localStorage.removeItem('hackmanagerData');
-        localStorage.removeItem('openai_api_key');
+        // Clear all API keys
+        ['groq', 'openai', 'anthropic', 'google', 'cohere', 'other'].forEach(provider => {
+            localStorage.removeItem(`${provider}_api_key`);
+            localStorage.removeItem(`${provider}_endpoint`);
+        });
+        localStorage.removeItem('ai_provider');
         
         // Reset application state
         app.currentPage = 'ai-assistant';
@@ -1964,8 +2273,16 @@ function clearLocalStorage() {
         if (elements.projectIdeaInput) elements.projectIdeaInput.value = '';
         
         // Clear API key input
-        const apiKeyInput = document.getElementById('openai-api-key');
+        const apiKeyInput = document.getElementById('api-key');
         if (apiKeyInput) apiKeyInput.value = '';
+        
+        // Clear endpoint input
+        const apiEndpointInput = document.getElementById('api-endpoint');
+        if (apiEndpointInput) apiEndpointInput.value = '';
+        
+        // Reset provider selection
+        const providerSelect = document.getElementById('ai-provider');
+        if (providerSelect) providerSelect.value = 'openai';
         
         // Reset radio buttons
         const localAIRadio = document.querySelector('input[name="ai-mode"][value="local"]');

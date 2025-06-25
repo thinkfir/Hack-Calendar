@@ -75,18 +75,39 @@
                                 <span class="text-gray-700">Local AI (Free, Offline)</span>
                             </label>
                             <label class="flex items-center">
-                                <input type="radio" name="ai-mode" value="openai" class="mr-2">
-                                <span class="text-gray-700">Custom AI (Requires API Key)</span>
+                                <input type="radio" name="ai-mode" value="custom" class="mr-2">
+                                <span class="text-gray-700">Custom AI Provider (Requires API Key)</span>
                             </label>
                         </div>
                         
-                        <!-- API Key Input (Hidden by default) -->
-                        <div id="api-key-section" class="mt-4 hidden">
-                            <label for="openai-api-key" class="form-label">OpenAI API Key</label>
-                            <input type="password" id="openai-api-key" class="form-input"
-                                   placeholder="sk-..."
-                                   autocomplete="off">
-                            <p class="text-xs text-gray-500 mt-1">Your API key is stored locally and never sent to our servers</p>
+                        <!-- API Provider Selection and Key Input (Hidden by default) -->
+                        <div id="api-key-section" class="mt-4 hidden space-y-4">
+                            <div>
+                                <label for="ai-provider" class="form-label">AI Provider</label>
+                                <select id="ai-provider" class="form-input">
+                                    <option value="groq">Groq (Fast & Free)</option>
+                                    <option value="openai">OpenAI (GPT-4/GPT-3.5)</option>
+                                    <option value="anthropic">Anthropic (Claude)</option>
+                                    <option value="google">Google (Gemini)</option>
+                                    <option value="cohere">Cohere</option>
+                                    <option value="other">Other (OpenAI Compatible)</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label for="api-key" class="form-label">API Key</label>
+                                <input type="password" id="api-key" class="form-input"
+                                       placeholder="Enter your API key..."
+                                       autocomplete="off">
+                                <p class="text-xs text-gray-500 mt-1">Your API key is stored locally and never sent to our servers</p>
+                            </div>
+                            
+                            <div id="api-endpoint-section" class="hidden">
+                                <label for="api-endpoint" class="form-label">API Endpoint (Optional)</label>
+                                <input type="text" id="api-endpoint" class="form-input"
+                                       placeholder="https://api.example.com/v1/chat/completions">
+                                <p class="text-xs text-gray-500 mt-1">Only needed for custom/self-hosted models</p>
+                            </div>
                         </div>
                     </div>
                     
