@@ -1,5 +1,6 @@
 // HackManager - Main JavaScript File
 
+
 // Application State
 const app = {
     // Current page
@@ -17,14 +18,14 @@ const app = {
     
     // All tasks array
     allTasks: [],
-    
+    //wakatimeshoudlreworknow.
     // Calendar data structure
     calendarData: {
         days: [],
         currentView: 'week' // 'week' or 'month'
     }
 };
-
+//waakatime please start working again my friend
 // DOM Elements (will be populated after DOMContentLoaded)
 const elements = {};
 
@@ -58,7 +59,8 @@ function cacheElements() {
     elements.tasksList = document.getElementById('tasks-list');
     
     // Team Page
-    elements.teamMembersList = document.getElementById('team-members-list');
+    elements.teamMembersList = document.getElementById('team-members-simple-list');
+    elements.memberDetails = document.getElementById('member-details');
     elements.addMemberBtn = document.getElementById('add-member-btn');
     elements.teamStats = document.getElementById('team-stats');
     
@@ -82,6 +84,35 @@ function initializeEventListeners() {
     // AI Assistant
     if (elements.generateTasksBtn) {
         elements.generateTasksBtn.addEventListener('click', generateTasksFromIdea);
+    }
+    
+    // AI Mode Selection
+    const aiModeRadios = document.querySelectorAll('input[name="ai-mode"]');
+    const apiKeySection = document.getElementById('api-key-section');
+    const apiKeyInput = document.getElementById('openai-api-key');
+    
+    aiModeRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.value === 'openai') {
+                apiKeySection.classList.remove('hidden');
+                // Load saved API key if exists
+                const savedKey = localStorage.getItem('openai_api_key');
+                if (savedKey) {
+                    apiKeyInput.value = savedKey;
+                }
+            } else {
+                apiKeySection.classList.add('hidden');
+            }
+        });
+    });
+    
+    // Save API key when changed
+    if (apiKeyInput) {
+        apiKeyInput.addEventListener('change', (e) => {
+            if (e.target.value) {
+                localStorage.setItem('openai_api_key', e.target.value);
+            }
+        });
     }
     
     // Team Management
@@ -206,7 +237,10 @@ function addTeamMember(name) {
     const member = {
         id: generateId(),
         name: name,
-        colorIndex: app.teamMembers.length % 8
+        colorIndex: app.teamMembers.length % 8,
+        skills: [],
+        sleepStart: '02:00', // Default sleep start (2 AM)
+        sleepEnd: '08:00'    // Default sleep end (8 AM)
     };
     
     app.teamMembers.push(member);
@@ -252,21 +286,160 @@ function renderTeamMembers() {
     
     elements.teamMembersList.innerHTML = '';
     
+    // Simple list
     app.teamMembers.forEach((member, index) => {
         const memberDiv = document.createElement('div');
-        memberDiv.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+        memberDiv.className = `p-3 rounded-lg cursor-pointer hover:bg-gray-100 ${app.selectedMemberId === member.id ? 'bg-blue-50' : ''}`;
+        memberDiv.onclick = () => selectTeamMember(member.id);
         memberDiv.innerHTML = `
-            <div class="flex items-center">
+            <div class="flex items-center justify-between">
                 <span class="team-badge team-member-${member.colorIndex + 1}">${member.name}</span>
+                <button onclick="event.stopPropagation(); removeTeamMember('${member.id}')" class="text-red-500 hover:text-red-700 opacity-0 hover:opacity-100 transition-opacity">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
             </div>
-            <button onclick="removeTeamMember('${member.id}')" class="text-red-500 hover:text-red-700">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
         `;
         elements.teamMembersList.appendChild(memberDiv);
     });
+}
+
+// Select team member for editing
+function selectTeamMember(memberId) {
+    app.selectedMemberId = memberId;
+    renderTeamMembers();
+    renderMemberDetails(memberId);
+}
+
+// Render member details
+function renderMemberDetails(memberId) {
+    const member = app.teamMembers.find(m => m.id === memberId);
+    if (!member || !elements.memberDetails) return;
+    
+    elements.memberDetails.innerHTML = `
+        <div class="space-y-4">
+            <div>
+                <h4 class="font-semibold text-lg mb-2 flex items-center">
+                    <span class="team-badge team-member-${member.colorIndex + 1}">${member.name}</span>
+                </h4>
+            </div>
+            
+            <!-- Skills Section -->
+            <div>
+                <label class="text-sm font-medium text-gray-700 mb-2 block">Skills</label>
+                <div class="flex flex-wrap gap-2 mb-2">
+                    ${member.skills.map(skill => `
+                        <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center">
+                            ${skill}
+                            <button onclick="removeSkill('${member.id}', '${skill}')" class="ml-1 text-blue-500 hover:text-blue-700">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </span>
+                    `).join('')}
+                </div>
+                <div class="flex gap-2">
+                    <input type="text"
+                           id="skill-input-${member.id}"
+                           placeholder="Type a skill (e.g., React, Python, Design)"
+                           class="flex-1 text-sm border-gray-300 rounded px-3 py-2"
+                           onkeypress="if(event.key === 'Enter') { addCustomSkill('${member.id}'); }">
+                    <button onclick="addCustomSkill('${member.id}')" class="btn btn-secondary text-sm py-2">
+                        Add
+                    </button>
+                </div>
+                <div class="mt-2 text-xs text-gray-500">
+                    Suggestions: JavaScript, Python, React, Vue, Angular, Node.js, Django, Flutter,
+                    Swift, Kotlin, UI Design, UX Research, Data Science, Machine Learning,
+                    Cloud Computing, Docker, Kubernetes, GraphQL, REST APIs, MongoDB, PostgreSQL
+                </div>
+            </div>
+            
+            <!-- Sleep Schedule -->
+            <div>
+                <label class="text-sm font-medium text-gray-700 mb-2 block">Sleep Schedule</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-gray-600 mb-1 block">Sleep Start</label>
+                        <input type="time"
+                               value="${member.sleepStart}"
+                               onchange="updateSleepSchedule('${member.id}', 'sleepStart', this.value)"
+                               class="text-sm border-gray-300 rounded w-full px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600 mb-1 block">Sleep End</label>
+                        <input type="time"
+                               value="${member.sleepEnd}"
+                               onchange="updateSleepSchedule('${member.id}', 'sleepEnd', this.value)"
+                               class="text-sm border-gray-300 rounded w-full px-3 py-2">
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">
+                    Tasks won't be scheduled during sleep hours
+                </p>
+            </div>
+            
+            <!-- Statistics -->
+            <div class="pt-4 border-t">
+                <h5 class="text-sm font-medium text-gray-700 mb-2">Member Statistics</h5>
+                <div class="text-sm text-gray-600 space-y-1">
+                    <p>Assigned Tasks: ${app.allTasks.filter(t => t.assignedTo === member.id).length}</p>
+                    <p>Total Hours: ${app.allTasks.filter(t => t.assignedTo === member.id).reduce((sum, t) => sum + t.estimatedHours, 0)}h</p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Add custom skill
+function addCustomSkill(memberId) {
+    const input = document.getElementById(`skill-input-${memberId}`);
+    const skill = input.value.trim();
+    
+    if (!skill) return;
+    
+    const member = app.teamMembers.find(m => m.id === memberId);
+    if (member && !member.skills.includes(skill)) {
+        member.skills.push(skill);
+        saveToLocalStorage();
+        renderMemberDetails(memberId);
+        input.value = '';
+    }
+}
+
+// Add skill to team member
+function addSkill(memberId, skill) {
+    if (!skill) return;
+    
+    const member = app.teamMembers.find(m => m.id === memberId);
+    if (member && !member.skills.includes(skill)) {
+        member.skills.push(skill);
+        saveToLocalStorage();
+        renderTeamMembers();
+    }
+}
+
+// Remove skill from team member
+function removeSkill(memberId, skill) {
+    const member = app.teamMembers.find(m => m.id === memberId);
+    if (member) {
+        member.skills = member.skills.filter(s => s !== skill);
+        saveToLocalStorage();
+        if (app.selectedMemberId === memberId) {
+            renderMemberDetails(memberId);
+        }
+    }
+}
+
+// Update sleep schedule
+function updateSleepSchedule(memberId, field, value) {
+    const member = app.teamMembers.find(m => m.id === memberId);
+    if (member) {
+        member[field] = value;
+        saveToLocalStorage();
+    }
 }
 
 // Update team statistics
@@ -300,7 +473,7 @@ function saveProjectIdea(idea) {
 }
 
 // Generate tasks from project idea
-function generateTasksFromIdea() {
+async function generateTasksFromIdea() {
     const idea = elements.projectIdeaInput.value.trim();
     
     if (!idea) {
@@ -320,6 +493,17 @@ function generateTasksFromIdea() {
         return;
     }
     
+    // Check which AI mode is selected
+    const selectedMode = document.querySelector('input[name="ai-mode"]:checked').value;
+    
+    if (selectedMode === 'openai') {
+        const apiKey = document.getElementById('openai-api-key').value;
+        if (!apiKey) {
+            alert('Please enter your OpenAI API key.');
+            return;
+        }
+    }
+    
     // Save the project idea
     saveProjectIdea(idea);
     
@@ -327,13 +511,20 @@ function generateTasksFromIdea() {
     elements.aiResponse.innerHTML = '<p class="text-gray-600">🤖 AI is analyzing your project idea and generating a comprehensive task breakdown...</p>';
     elements.aiResponse.classList.remove('hidden');
     
-    // Simulate AI processing time
-    setTimeout(() => {
+    try {
+        let generatedTasks;
+        
+        if (selectedMode === 'openai') {
+            // Use OpenAI API
+            generatedTasks = await generateTasksWithOpenAI(idea);
+        } else {
+            // Use local generation (with simulated delay)
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            generatedTasks = generateProjectTasks(idea);
+        }
+        
         // Clear existing tasks
         app.allTasks = [];
-        
-        // Generate tasks based on project phases
-        const generatedTasks = generateProjectTasks(idea);
         
         // Add all tasks to the app
         generatedTasks.forEach(task => createTask(task));
@@ -344,7 +535,147 @@ function generateTasksFromIdea() {
         // Update team stats
         updateTeamStats();
         
-    }, 1500);
+    } catch (error) {
+        console.error('Error generating tasks:', error);
+        elements.aiResponse.innerHTML = `
+            <div class="text-red-600">
+                <p class="font-semibold">Error generating tasks</p>
+                <p class="text-sm mt-1">${error.message}</p>
+                <button onclick="generateTasksFromIdea()" class="btn btn-primary mt-3">Try Again</button>
+            </div>
+        `;
+    }
+}
+
+// Generate tasks using OpenAI API
+async function generateTasksWithOpenAI(projectIdea) {
+    const apiKey = document.getElementById('openai-api-key').value;
+    const startDate = new Date(app.hackathonSettings.startDate);
+    const totalHours = app.hackathonSettings.duration;
+    const teamMembers = app.teamMembers;
+    
+    const prompt = `You are a hackathon project manager. Generate a detailed task breakdown for a ${totalHours}-hour hackathon project.
+
+Project Idea: ${projectIdea}
+
+Team Members with Skills and Sleep Schedules:
+${teamMembers.map(m => `- ${m.name}: Skills: [${m.skills.join(', ') || 'No specific skills listed'}], Sleep: ${m.sleepStart}-${m.sleepEnd}`).join('\n')}
+
+Start Date: ${startDate.toISOString()}
+Duration: ${totalHours} hours
+
+IMPORTANT CONSTRAINTS:
+1. Assign tasks based on team members' skills when possible
+2. NEVER schedule tasks during a team member's sleep hours
+3. Use 24-hour time format for all times
+
+Generate a comprehensive list of tasks in JSON format. Each task should have:
+- title: Clear, action-oriented task name
+- description: Detailed description of what needs to be done
+- phase: One of "planning", "design", "development", "integration", "testing", "presentation"
+- estimatedHours: Realistic time estimate (consider sleep schedules)
+- priority: "high", "medium", or "low"
+- assignedTo: Assign to the team member with the most relevant skills for the task
+
+Skill mapping guide:
+- Frontend tasks → members with Frontend, UI/UX skills
+- Backend tasks → members with Backend, Database skills
+- Mobile tasks → members with Mobile skills
+- AI/ML tasks → members with AI/ML skills
+- Testing tasks → members with Testing skills
+- Planning tasks → members with Project Management skills
+
+Allocate time wisely:
+- Planning: ~10% (research, brainstorming)
+- Design: ~15% (architecture, UI/UX)
+- Development: ~50% (core features)
+- Integration: ~10% (connecting components)
+- Testing: ~10% (QA, bug fixes)
+- Presentation: ~5% (demo prep)
+
+Consider the project type and include relevant tasks like API development, database design, AI/ML implementation, etc.
+
+Return ONLY a JSON array of task objects.`;
+
+    try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a helpful hackathon project manager that generates detailed task breakdowns. Always respond with valid JSON arrays only.'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 2000
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || 'API request failed');
+        }
+
+        const data = await response.json();
+        const aiResponse = data.choices[0].message.content;
+        
+        // Parse the AI response
+        let tasks;
+        try {
+            // Extract JSON from the response (in case there's extra text)
+            const jsonMatch = aiResponse.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+                tasks = JSON.parse(jsonMatch[0]);
+            } else {
+                tasks = JSON.parse(aiResponse);
+            }
+        } catch (parseError) {
+            console.error('Failed to parse AI response:', aiResponse);
+            throw new Error('Failed to parse AI response. Using local generation as fallback.');
+        }
+        
+        // Process and validate tasks
+        const processedTasks = tasks.map((task, index) => {
+            // Find team member by name
+            const assignedMember = teamMembers.find(m => m.name === task.assignedTo) || teamMembers[index % teamMembers.length];
+            
+            // Calculate dates based on estimated hours
+            const taskStart = addHours(startDate,
+                tasks.slice(0, index).reduce((sum, t) => sum + (t.estimatedHours || 1), 0)
+            );
+            const taskEnd = addHours(taskStart, task.estimatedHours || 1);
+            
+            return {
+                title: task.title || 'Untitled Task',
+                description: task.description || '',
+                phase: task.phase || 'development',
+                startDate: taskStart,
+                endDate: taskEnd,
+                estimatedHours: task.estimatedHours || 1,
+                priority: task.priority || 'medium',
+                assignedTo: assignedMember.id,
+                status: 'Not Started'
+            };
+        });
+        
+        return processedTasks;
+        
+    } catch (error) {
+        console.error('OpenAI API error:', error);
+        // Fallback to local generation
+        console.log('Falling back to local task generation');
+        return generateProjectTasks(projectIdea);
+    }
 }
 
 // AI-powered task generation based on project idea
@@ -374,37 +705,101 @@ function generateProjectTasks(projectIdea) {
     let currentTime = 0;
     let taskCounter = 0;
     
-    // Helper function to assign team members in rotation
-    const assignMember = () => {
-        return app.teamMembers[taskCounter % teamSize].id;
+    // Helper function to assign team members based on skills and availability
+    const assignMember = (taskPhase, taskTitle) => {
+        // Map phases to relevant skills
+        const phaseSkillMap = {
+            'planning': ['Project Management', 'Other'],
+            'design': ['UI/UX', 'Frontend', 'Mobile'],
+            'development': ['Frontend', 'Backend', 'Mobile', 'Database', 'AI/ML'],
+            'integration': ['Backend', 'DevOps', 'Database'],
+            'testing': ['Testing', 'DevOps'],
+            'presentation': ['Project Management', 'UI/UX']
+        };
+        
+        // Get relevant skills for this phase
+        const relevantSkills = phaseSkillMap[taskPhase] || [];
+        
+        // Find team members with matching skills
+        let eligibleMembers = app.teamMembers.filter(member =>
+            member.skills.some(skill => relevantSkills.includes(skill))
+        );
+        
+        // If no members with matching skills, use all members
+        if (eligibleMembers.length === 0) {
+            eligibleMembers = app.teamMembers;
+        }
+        
+        // Rotate among eligible members
+        const selectedMember = eligibleMembers[taskCounter % eligibleMembers.length];
+        return selectedMember.id;
+    };
+    
+    // Helper function to check if time falls within sleep schedule
+    const isDuringSleep = (date, member) => {
+        const hours = date.getHours();
+        const sleepStartHour = parseInt(member.sleepStart.split(':')[0]);
+        const sleepEndHour = parseInt(member.sleepEnd.split(':')[0]);
+        
+        if (sleepStartHour < sleepEndHour) {
+            // Normal sleep schedule (e.g., 23:00 to 07:00)
+            return hours >= sleepStartHour || hours < sleepEndHour;
+        } else {
+            // Sleep schedule crosses midnight (e.g., 02:00 to 08:00)
+            return hours >= sleepStartHour && hours < sleepEndHour;
+        }
+    };
+    
+    // Helper function to get next available time considering sleep
+    const getNextAvailableTime = (proposedTime, assignedMemberId) => {
+        const member = app.teamMembers.find(m => m.id === assignedMemberId);
+        if (!member) return proposedTime;
+        
+        let adjustedTime = new Date(proposedTime);
+        
+        // Check if proposed time is during sleep
+        while (isDuringSleep(adjustedTime, member)) {
+            adjustedTime.setHours(adjustedTime.getHours() + 1);
+        }
+        
+        return adjustedTime;
     };
     
     // Phase 1: Planning & Research
     const planningHours = Math.floor(totalHours * timeAllocation.planning);
+    let task1Member = assignMember("planning", "Team Kickoff & Brainstorming");
+    let task1Start = getNextAvailableTime(addHours(startDate, currentTime), task1Member);
+    let task1End = addHours(task1Start, 1);
+    
     tasks.push({
         title: "Team Kickoff & Brainstorming",
         description: "Initial team meeting to discuss the project idea, establish goals, and align on the vision",
         phase: "planning",
-        startDate: addHours(startDate, currentTime),
-        endDate: addHours(startDate, currentTime + 1),
+        startDate: task1Start,
+        endDate: task1End,
         estimatedHours: 1,
         priority: "high",
-        assignedTo: assignMember()
+        assignedTo: task1Member
     });
     currentTime += 1;
     taskCounter++;
+    
+    let task2Member = assignMember("planning", "Technical Research & Feasibility Study");
+    let task2Start = getNextAvailableTime(addHours(startDate, currentTime), task2Member);
+    let task2Hours = Math.max(1, planningHours - 1);
+    let task2End = addHours(task2Start, task2Hours);
     
     tasks.push({
         title: "Technical Research & Feasibility Study",
         description: "Research technical requirements, APIs, libraries, and tools needed for the project",
         phase: "planning",
-        startDate: addHours(startDate, currentTime),
-        endDate: addHours(startDate, currentTime + Math.max(1, planningHours - 1)),
-        estimatedHours: Math.max(1, planningHours - 1),
+        startDate: task2Start,
+        endDate: task2End,
+        estimatedHours: task2Hours,
         priority: "high",
-        assignedTo: assignMember()
+        assignedTo: task2Member
     });
-    currentTime += Math.max(1, planningHours - 1);
+    currentTime += task2Hours;
     taskCounter++;
     
     // Phase 2: Design & Architecture
@@ -802,12 +1197,8 @@ function initializeCalendar() {
 
 // Render calendar
 function renderCalendar() {
-    if (!elements.calendarContainer) return;
-    
-    elements.calendarContainer.innerHTML = '';
-    
     if (!validateHackathonSettings()) {
-        elements.calendarContainer.innerHTML = `
+        document.getElementById('calendar-container').innerHTML = `
             <div class="text-center py-12 text-gray-500">
                 <p>Please configure hackathon settings first.</p>
                 <button onclick="showPage('settings')" class="btn btn-primary mt-4">
@@ -818,116 +1209,214 @@ function renderCalendar() {
         return;
     }
     
-    // Initialize calendar if needed
-    if (app.calendarData.days.length === 0) {
-        initializeCalendar();
+    // Update date range display
+    const dateRange = document.getElementById('calendar-date-range');
+    if (dateRange) {
+        dateRange.textContent = `${formatFullDate(app.hackathonSettings.startDate)} - ${formatFullDate(calculateEndDate(app.hackathonSettings.startDate, app.hackathonSettings.duration))}`;
     }
     
-    // Create timeline view
-    const timelineContainer = document.createElement('div');
-    timelineContainer.className = 'space-y-4';
+    // Render time column
+    renderTimeColumn();
     
-    // Add timeline header
-    timelineContainer.innerHTML = `
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold">Hackathon Timeline</h3>
-            <div class="text-sm text-gray-600">
-                ${formatFullDate(app.hackathonSettings.startDate)} -
-                ${formatFullDate(calculateEndDate(app.hackathonSettings.startDate, app.hackathonSettings.duration))}
-            </div>
-        </div>
+    // Render calendar grid
+    renderCalendarGrid();
+    
+    // Render team members sidebar
+    renderTeamMembersSidebar();
+}
+
+// Render time column
+function renderTimeColumn() {
+    const timeColumn = document.getElementById('time-column');
+    if (!timeColumn) return;
+    
+    timeColumn.innerHTML = '';
+    
+    // Calculate total hours and create time slots
+    const startDate = new Date(app.hackathonSettings.startDate);
+    const totalHours = app.hackathonSettings.duration;
+    
+    for (let i = 0; i <= totalHours; i++) {
+        const currentHour = new Date(startDate);
+        currentHour.setHours(currentHour.getHours() + i);
+        
+        const timeSlot = document.createElement('div');
+        timeSlot.className = 'h-20 border-b border-gray-200 text-xs text-gray-500 px-2 py-1';
+        timeSlot.textContent = currentHour.getHours().toString().padStart(2, '0') + ':00';
+        
+        timeColumn.appendChild(timeSlot);
+    }
+}
+
+// Render calendar grid
+function renderCalendarGrid() {
+    const container = document.getElementById('calendar-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    // Create header with day columns
+    const header = document.createElement('div');
+    header.className = 'flex h-12 border-b border-gray-200 bg-gray-50';
+    
+    // Calculate days in hackathon
+    const startDate = new Date(app.hackathonSettings.startDate);
+    const endDate = calculateEndDate(startDate, app.hackathonSettings.duration);
+    const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+    
+    // Create day headers
+    for (let d = 0; d < days; d++) {
+        const dayDate = new Date(startDate);
+        dayDate.setDate(dayDate.getDate() + d);
+        
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'flex-1 text-center text-sm font-medium text-gray-700 py-3 border-r border-gray-200 last:border-r-0';
+        dayHeader.textContent = dayDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        
+        header.appendChild(dayHeader);
+    }
+    container.appendChild(header);
+    
+    // Create grid container
+    const grid = document.createElement('div');
+    grid.className = 'relative';
+    grid.style.height = `${app.hackathonSettings.duration * 80}px`; // 80px per hour
+    
+    // Create hour grid lines
+    for (let h = 0; h <= app.hackathonSettings.duration; h++) {
+        const hourLine = document.createElement('div');
+        hourLine.className = 'absolute w-full border-b border-gray-200';
+        hourLine.style.top = `${h * 80}px`;
+        grid.appendChild(hourLine);
+    }
+    
+    // Create day columns
+    const dayColumns = document.createElement('div');
+    dayColumns.className = 'absolute inset-0 flex';
+    
+    for (let d = 0; d < days; d++) {
+        const dayColumn = document.createElement('div');
+        dayColumn.className = 'flex-1 border-r border-gray-200 last:border-r-0';
+        dayColumns.appendChild(dayColumn);
+    }
+    grid.appendChild(dayColumns);
+    
+    // Render tasks
+    app.allTasks.forEach(task => {
+        const taskElement = createTaskElement(task, startDate, days);
+        if (taskElement) {
+            grid.appendChild(taskElement);
+        }
+    });
+    
+    container.appendChild(grid);
+}
+
+// Create task element for calendar
+function createTaskElement(task, calendarStart, totalDays) {
+    const member = app.teamMembers.find(m => m.id === task.assignedTo);
+    if (!member) return null;
+    
+    // Calculate position
+    const taskStart = new Date(task.startDate);
+    const taskEnd = new Date(task.endDate);
+    
+    // Calculate which day column
+    const dayOffset = Math.floor((taskStart - calendarStart) / (1000 * 60 * 60 * 24));
+    if (dayOffset < 0 || dayOffset >= totalDays) return null;
+    
+    // Calculate vertical position (minutes from start of hackathon)
+    const minutesFromStart = (taskStart - calendarStart) / (1000 * 60);
+    const topPosition = (minutesFromStart / 60) * 80; // 80px per hour
+    
+    // Calculate height
+    const durationMinutes = (taskEnd - taskStart) / (1000 * 60);
+    const height = (durationMinutes / 60) * 80;
+    
+    // Calculate horizontal position
+    const dayWidth = 100 / totalDays;
+    const left = dayOffset * dayWidth;
+    
+    const taskEl = document.createElement('div');
+    taskEl.className = `absolute rounded px-2 py-1 cursor-pointer hover:shadow-lg transition-shadow text-white text-xs overflow-hidden`;
+    taskEl.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue(`--team-color-${member.colorIndex + 1}`);
+    taskEl.style.top = `${topPosition}px`;
+    taskEl.style.height = `${height - 4}px`; // -4 for padding
+    taskEl.style.left = `${left + 0.5}%`; // 0.5% margin
+    taskEl.style.width = `${dayWidth - 1}%`; // -1% for margins
+    taskEl.style.zIndex = '10';
+    
+    taskEl.innerHTML = `
+        <div class="font-semibold truncate">${formatDate(taskStart)} - ${formatDate(taskEnd)}</div>
+        <div class="truncate">${task.title}</div>
+        <div class="text-xs opacity-75">${member.name}</div>
     `;
     
-    // Create hourly timeline
-    const timeline = document.createElement('div');
-    timeline.className = 'bg-gray-50 p-4 rounded-lg overflow-x-auto';
+    taskEl.onclick = () => showTaskModal(task.id);
+    taskEl.title = `${task.title}\n${member.name}\n${formatDate(taskStart)} - ${formatDate(taskEnd)}`;
     
-    // Group tasks by team member
-    const tasksByMember = {};
+    return taskEl;
+}
+
+// Render team members sidebar
+function renderTeamMembersSidebar() {
+    const membersList = document.getElementById('team-members-calendar-list');
+    if (!membersList) return;
+    
+    membersList.innerHTML = '';
+    
     app.teamMembers.forEach(member => {
-        tasksByMember[member.id] = {
-            member: member,
-            tasks: app.allTasks.filter(task => task.assignedTo === member.id)
-        };
+        const memberItem = document.createElement('div');
+        memberItem.className = 'cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors';
+        memberItem.onclick = () => showMemberTasks(member.id);
+        
+        const taskCount = app.allTasks.filter(t => t.assignedTo === member.id).length;
+        const totalHours = app.allTasks.filter(t => t.assignedTo === member.id)
+            .reduce((sum, t) => sum + t.estimatedHours, 0);
+        
+        memberItem.innerHTML = `
+            <div class="flex items-center justify-between">
+                <span class="team-badge team-member-${member.colorIndex + 1} text-sm">${member.name}</span>
+                <span class="text-xs text-gray-500">${taskCount} tasks</span>
+            </div>
+            <div class="text-xs text-gray-500 mt-1">${totalHours}h total</div>
+        `;
+        
+        membersList.appendChild(memberItem);
     });
+}
+
+// Show member tasks popup
+function showMemberTasks(memberId) {
+    const member = app.teamMembers.find(m => m.id === memberId);
+    if (!member) return;
     
-    // Render swimlanes for each team member
-    Object.values(tasksByMember).forEach(({ member, tasks }) => {
-        const swimlane = document.createElement('div');
-        swimlane.className = 'mb-4 last:mb-0';
-        
-        // Member header
-        const memberHeader = document.createElement('div');
-        memberHeader.className = `team-badge team-member-${member.colorIndex + 1} mb-2`;
-        memberHeader.textContent = member.name;
-        swimlane.appendChild(memberHeader);
-        
-        // Task timeline
-        const taskTimeline = document.createElement('div');
-        taskTimeline.className = 'relative h-16 bg-white rounded border border-gray-200';
-        
-        // Calculate timeline scale
-        const totalHours = app.hackathonSettings.duration;
-        const startTime = app.hackathonSettings.startDate.getTime();
-        
-        // Render tasks as blocks
-        tasks.forEach(task => {
-            const taskStartOffset = (task.startDate.getTime() - startTime) / (1000 * 60 * 60);
-            const taskDuration = (task.endDate.getTime() - task.startDate.getTime()) / (1000 * 60 * 60);
-            
-            const leftPercent = (taskStartOffset / totalHours) * 100;
-            const widthPercent = (taskDuration / totalHours) * 100;
-            
-            const taskBlock = document.createElement('div');
-            taskBlock.className = `absolute top-2 bottom-2 bg-opacity-80 rounded cursor-pointer hover:shadow-lg transition-shadow team-member-${member.colorIndex + 1}`;
-            taskBlock.style.left = `${leftPercent}%`;
-            taskBlock.style.width = `${widthPercent}%`;
-            taskBlock.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue(`--team-color-${member.colorIndex + 1}`);
-            
-            // Add task info
-            taskBlock.innerHTML = `
-                <div class="px-2 py-1 text-xs text-white truncate">
-                    ${task.title}
-                </div>
-            `;
-            
-            taskBlock.onclick = () => showTaskModal(task.id);
-            taskBlock.title = `${task.title} (${task.estimatedHours}h)`;
-            
-            taskTimeline.appendChild(taskBlock);
-        });
-        
-        swimlane.appendChild(taskTimeline);
-        timeline.appendChild(swimlane);
-    });
+    const popup = document.getElementById('member-tasks-popup');
+    const popupName = document.getElementById('popup-member-name');
+    const popupTasks = document.getElementById('popup-member-tasks');
     
-    // Add hour markers
-    const hourMarkers = document.createElement('div');
-    hourMarkers.className = 'flex justify-between text-xs text-gray-500 mt-2 px-1';
+    if (!popup || !popupName || !popupTasks) return;
     
-    const markerCount = Math.min(app.hackathonSettings.duration, 8);
-    const hourInterval = Math.floor(app.hackathonSettings.duration / markerCount);
+    // Update popup content
+    popupName.textContent = member.name;
+    popupName.className = `font-semibold mb-2 team-member-${member.colorIndex + 1} text-white px-2 py-1 rounded inline-block`;
     
-    for (let i = 0; i <= markerCount; i++) {
-        const hour = i * hourInterval;
-        const marker = document.createElement('span');
-        marker.textContent = `${hour}h`;
-        hourMarkers.appendChild(marker);
-    }
+    const memberTasks = app.allTasks.filter(t => t.assignedTo === memberId);
     
-    timeline.appendChild(hourMarkers);
-    timelineContainer.appendChild(timeline);
+    popupTasks.innerHTML = memberTasks.length > 0 ? memberTasks.map(task => `
+        <div class="p-2 bg-white rounded border border-gray-200 cursor-pointer hover:shadow-sm"
+             onclick="showTaskModal('${task.id}')">
+            <div class="font-medium">${task.title}</div>
+            <div class="text-xs text-gray-500">
+                ${formatDate(task.startDate)} - ${formatDate(task.endDate)}
+                (${task.estimatedHours}h)
+            </div>
+            <div class="text-xs text-gray-600 mt-1">${task.phase}</div>
+        </div>
+    `).join('') : '<p class="text-gray-500">No tasks assigned yet</p>';
     
-    // Add legend
-    const legend = document.createElement('div');
-    legend.className = 'mt-4 text-xs text-gray-600';
-    legend.innerHTML = `
-        <p>💡 Click on any task block to view details or edit</p>
-        <p>📊 Tasks are automatically distributed among team members</p>
-    `;
-    timelineContainer.appendChild(legend);
-    
-    elements.calendarContainer.appendChild(timelineContainer);
+    // Show popup
+    popup.classList.remove('hidden');
 }
 
 // Format full date
@@ -1133,8 +1622,12 @@ function generateId() {
 
 // Format date
 function formatDate(date) {
-    // Placeholder function
-    // Will format dates for display
+    if (!date) return '';
+    const d = new Date(date);
+    const day = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const hours = d.getHours().toString().padStart(2, '0');
+    const minutes = d.getMinutes().toString().padStart(2, '0');
+    return `${day} ${hours}:${minutes}`;
 }
 
 // Parse duration
@@ -1144,9 +1637,10 @@ function parseDuration(duration) {
 }
 
 // Calculate end date
-function calculateEndDate(startDate, duration) {
-    // Placeholder function
-    // Will calculate hackathon end date
+function calculateEndDate(startDate, durationHours) {
+    const endDate = new Date(startDate);
+    endDate.setHours(endDate.getHours() + durationHours);
+    return endDate;
 }
 
 // Get team member color
