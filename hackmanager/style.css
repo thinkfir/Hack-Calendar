@@ -133,18 +133,41 @@ aside {
 }
 
 /* Google Calendar Style */
-#time-column > div {
+#time-column {
+    position: relative;
+    pointer-events: none;
+}
+
+#calendar-scroll-container {
     position: relative;
 }
 
-#time-column > div::after {
-    content: '';
-    position: absolute;
-    right: -1px;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background-color: var(--border-color);
+/* Synchronized scrolling containers */
+#calendar-days-header {
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+
+#calendar-scrollbar {
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+#calendar-scrollbar::-webkit-scrollbar {
+    height: 12px;
+}
+
+#calendar-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+#calendar-scrollbar::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 6px;
+}
+
+#calendar-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }
 
 .calendar-task {
@@ -155,6 +178,21 @@ aside {
 .calendar-task:hover {
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
     transform: translateY(-1px);
+}
+
+/* Multi-day task styling */
+.task-multi-day-start {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+}
+
+.task-multi-day-middle {
+    border-radius: 0 !important;
+}
+
+.task-multi-day-end {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
 }
 
 /* Task Styles */

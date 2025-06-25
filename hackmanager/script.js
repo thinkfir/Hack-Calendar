@@ -386,8 +386,8 @@ function renderMemberDetails(memberId) {
             <div class="pt-4 border-t">
                 <h5 class="text-sm font-medium text-gray-700 mb-2">Member Statistics</h5>
                 <div class="text-sm text-gray-600 space-y-1">
-                    <p>Assigned Tasks: ${app.allTasks.filter(t => t.assignedTo === member.id).length}</p>
-                    <p>Total Hours: ${app.allTasks.filter(t => t.assignedTo === member.id).reduce((sum, t) => sum + t.estimatedHours, 0)}h</p>
+                    <p>Assigned Tasks: ${app.allTasks.filter(t => Array.isArray(t.assignedTo) ? t.assignedTo.includes(member.id) : t.assignedTo === member.id).length}</p>
+                    <p>Total Hours: ${app.allTasks.filter(t => Array.isArray(t.assignedTo) ? t.assignedTo.includes(member.id) : t.assignedTo === member.id).reduce((sum, t) => sum + t.estimatedHours, 0)}h</p>
                 </div>
             </div>
         </div>
@@ -664,7 +664,7 @@ Return ONLY a JSON array of task objects.`;
                 endDate: taskEnd,
                 estimatedHours: task.estimatedHours || 1,
                 priority: task.priority || 'medium',
-                assignedTo: assignedMember.id,
+                assignedTo: [assignedMember.id], // Changed to array
                 status: 'Not Started'
             };
         });
@@ -780,7 +780,7 @@ function generateProjectTasks(projectIdea) {
         endDate: task1End,
         estimatedHours: 1,
         priority: "high",
-        assignedTo: task1Member
+        assignedTo: [task1Member]
     });
     currentTime += 1;
     taskCounter++;
@@ -798,7 +798,7 @@ function generateProjectTasks(projectIdea) {
         endDate: task2End,
         estimatedHours: task2Hours,
         priority: "high",
-        assignedTo: task2Member
+        assignedTo: [task2Member]
     });
     currentTime += task2Hours;
     taskCounter++;
@@ -814,7 +814,7 @@ function generateProjectTasks(projectIdea) {
         endDate: addHours(startDate, currentTime + Math.floor(designHours * 0.4)),
         estimatedHours: Math.floor(designHours * 0.4),
         priority: "high",
-        assignedTo: assignMember()
+        assignedTo: [assignMember("design", "System Architecture Design")]
     });
     
     tasks.push({
@@ -825,7 +825,7 @@ function generateProjectTasks(projectIdea) {
         endDate: addHours(startDate, currentTime + Math.floor(designHours * 0.6)),
         estimatedHours: Math.floor(designHours * 0.6),
         priority: "high",
-        assignedTo: assignMember()
+        assignedTo: [assignMember("design", "UI/UX Design & Wireframes")]
     });
     currentTime += designHours;
     taskCounter += 2;
@@ -843,7 +843,7 @@ function generateProjectTasks(projectIdea) {
             endDate: addHours(startDate, currentTime + Math.floor(devHours * 0.15)),
             estimatedHours: Math.floor(devHours * 0.15),
             priority: "high",
-            assignedTo: assignMember()
+            assignedTo: [assignMember("development", "Frontend Setup & Base Structure")]
         });
         taskCounter++;
         
@@ -855,7 +855,7 @@ function generateProjectTasks(projectIdea) {
             endDate: addHours(startDate, currentTime + Math.floor(devHours * 0.4)),
             estimatedHours: Math.floor(devHours * 0.25),
             priority: "high",
-            assignedTo: assignMember()
+            assignedTo: [assignMember("development", "Implement Core UI Components")]
         });
         taskCounter++;
     }
@@ -870,7 +870,7 @@ function generateProjectTasks(projectIdea) {
             endDate: addHours(startDate, currentTime + Math.floor(devHours * 0.3)),
             estimatedHours: Math.floor(devHours * 0.3),
             priority: "high",
-            assignedTo: assignMember()
+            assignedTo: [assignMember("development", "Backend API Development")]
         });
         taskCounter++;
         
@@ -882,7 +882,7 @@ function generateProjectTasks(projectIdea) {
             endDate: addHours(startDate, currentTime + Math.floor(devHours * 0.2)),
             estimatedHours: Math.floor(devHours * 0.2),
             priority: "high",
-            assignedTo: assignMember()
+            assignedTo: [assignMember("development", "Database Design & Implementation")]
         });
         taskCounter++;
     }
@@ -897,7 +897,7 @@ function generateProjectTasks(projectIdea) {
             endDate: addHours(startDate, currentTime + Math.floor(devHours * 0.5)),
             estimatedHours: Math.floor(devHours * 0.3),
             priority: "high",
-            assignedTo: assignMember()
+            assignedTo: [assignMember("development", "AI Model Development")]
         });
         taskCounter++;
     }
@@ -911,7 +911,7 @@ function generateProjectTasks(projectIdea) {
         endDate: addHours(startDate, currentTime + Math.floor(devHours * 0.8)),
         estimatedHours: Math.floor(devHours * 0.5),
         priority: "high",
-        assignedTo: assignMember()
+        assignedTo: [assignMember("development", "Implement Core Features")]
     });
     currentTime += devHours;
     taskCounter++;
@@ -927,7 +927,7 @@ function generateProjectTasks(projectIdea) {
         endDate: addHours(startDate, currentTime + integrationHours),
         estimatedHours: integrationHours,
         priority: "medium",
-        assignedTo: assignMember()
+        assignedTo: [assignMember("integration", "System Integration")]
     });
     currentTime += integrationHours;
     taskCounter++;
@@ -943,7 +943,7 @@ function generateProjectTasks(projectIdea) {
         endDate: addHours(startDate, currentTime + testingHours),
         estimatedHours: testingHours,
         priority: "medium",
-        assignedTo: assignMember()
+        assignedTo: [assignMember("testing", "Testing & Bug Fixes")]
     });
     currentTime += testingHours;
     taskCounter++;
@@ -959,7 +959,7 @@ function generateProjectTasks(projectIdea) {
         endDate: addHours(startDate, currentTime + presentationHours),
         estimatedHours: presentationHours,
         priority: "high",
-        assignedTo: assignMember()
+        assignedTo: [assignMember("presentation", "Create Demo & Presentation")]
     });
     taskCounter++;
     
@@ -1004,14 +1004,21 @@ function displayGeneratedTasks(tasks) {
         `;
         
         phaseTasks.forEach(task => {
-            const assignedMember = app.teamMembers.find(m => m.id === task.assignedTo);
+            // Handle both single assignee (legacy) and multiple assignees
+            const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
+            const assignedMembers = assignees.map(id => app.teamMembers.find(m => m.id === id)).filter(m => m);
+            
             html += `
                 <div class="bg-gray-50 p-3 rounded">
                     <div class="flex justify-between items-start">
                         <strong>${task.title}</strong>
-                        <span class="team-badge team-member-${assignedMember.colorIndex + 1} text-xs">
-                            ${assignedMember.name}
-                        </span>
+                        <div class="flex gap-1 flex-wrap">
+                            ${assignedMembers.map(member => `
+                                <span class="team-badge team-member-${member.colorIndex + 1} text-xs">
+                                    ${member.name}
+                                </span>
+                            `).join('')}
+                        </div>
                     </div>
                     <p class="text-sm text-gray-600 mt-1">${task.description}</p>
                     <p class="text-xs text-gray-500 mt-2">
@@ -1073,7 +1080,7 @@ function createTask(taskData) {
         description: taskData.description || '',
         startDate: taskData.startDate || new Date(),
         endDate: taskData.endDate || new Date(),
-        assignedTo: taskData.assignedTo || null,
+        assignedTo: taskData.assignedTo || [], // Changed to array for multiple assignees
         status: taskData.status || 'Not Started',
         priority: taskData.priority || 'medium',
         dependencies: taskData.dependencies || [],
@@ -1124,7 +1131,30 @@ function deleteTask(taskId) {
 function assignTask(taskId, memberId) {
     const task = app.allTasks.find(t => t.id === taskId);
     if (task) {
-        task.assignedTo = memberId;
+        // Support multiple assignees
+        if (!Array.isArray(task.assignedTo)) {
+            task.assignedTo = task.assignedTo ? [task.assignedTo] : [];
+        }
+        
+        // Add member if not already assigned
+        if (!task.assignedTo.includes(memberId)) {
+            task.assignedTo.push(memberId);
+        }
+        
+        saveToLocalStorage();
+        
+        // Re-render if on calendar page
+        if (app.currentPage === 'calendar') {
+            renderTasks();
+        }
+    }
+}
+
+// Remove assignment from task
+function unassignTask(taskId, memberId) {
+    const task = app.allTasks.find(t => t.id === taskId);
+    if (task && Array.isArray(task.assignedTo)) {
+        task.assignedTo = task.assignedTo.filter(id => id !== memberId);
         saveToLocalStorage();
         
         // Re-render if on calendar page
@@ -1150,12 +1180,18 @@ function renderTasks() {
         taskDiv.className = 'task-item cursor-pointer hover:shadow-md';
         taskDiv.onclick = () => showTaskModal(task.id);
         
-        const assignedMember = app.teamMembers.find(m => m.id === task.assignedTo);
+        // Handle both single assignee (legacy) and multiple assignees
+        const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+        const assignedMembers = assignees.map(id => app.teamMembers.find(m => m.id === id)).filter(m => m);
         
         taskDiv.innerHTML = `
             <div class="flex justify-between items-start mb-2">
                 <h4 class="font-medium">${task.title}</h4>
-                ${assignedMember ? `<span class="team-badge team-member-${assignedMember.colorIndex + 1} text-xs">${assignedMember.name}</span>` : ''}
+                <div class="flex gap-1 flex-wrap">
+                    ${assignedMembers.map(member => `
+                        <span class="team-badge team-member-${member.colorIndex + 1} text-xs">${member.name}</span>
+                    `).join('')}
+                </div>
             </div>
             <p class="text-sm text-gray-600">${task.description || 'No description'}</p>
             <div class="flex justify-between items-center mt-2">
@@ -1232,6 +1268,7 @@ function renderTimeColumn() {
     if (!timeColumn) return;
     
     timeColumn.innerHTML = '';
+    timeColumn.style.height = `${app.hackathonSettings.duration * 80}px`; // Match grid height
     
     // Calculate total hours and create time slots
     const startDate = new Date(app.hackathonSettings.startDate);
@@ -1242,7 +1279,8 @@ function renderTimeColumn() {
         currentHour.setHours(currentHour.getHours() + i);
         
         const timeSlot = document.createElement('div');
-        timeSlot.className = 'h-20 border-b border-gray-200 text-xs text-gray-500 px-2 py-1';
+        timeSlot.className = 'absolute w-full text-xs text-gray-500 px-2';
+        timeSlot.style.top = `${i * 80}px`;
         timeSlot.textContent = currentHour.getHours().toString().padStart(2, '0') + ':00';
         
         timeColumn.appendChild(timeSlot);
@@ -1252,18 +1290,29 @@ function renderTimeColumn() {
 // Render calendar grid
 function renderCalendarGrid() {
     const container = document.getElementById('calendar-container');
-    if (!container) return;
+    const daysHeader = document.getElementById('calendar-days-header');
+    const scrollContainer = document.getElementById('calendar-scroll-container');
+    const scrollbar = document.getElementById('calendar-scrollbar');
+    const scrollbarContent = document.getElementById('scrollbar-content');
+    
+    if (!container || !daysHeader) return;
     
     container.innerHTML = '';
-    
-    // Create header with day columns
-    const header = document.createElement('div');
-    header.className = 'flex h-12 border-b border-gray-200 bg-gray-50';
+    daysHeader.innerHTML = '';
     
     // Calculate days in hackathon
     const startDate = new Date(app.hackathonSettings.startDate);
     const endDate = calculateEndDate(startDate, app.hackathonSettings.duration);
     const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+    
+    // Set minimum column width for better visibility
+    const minColumnWidth = 200;
+    const totalWidth = Math.max(days * minColumnWidth, scrollContainer.offsetWidth);
+    
+    // Create day headers container
+    const headerContainer = document.createElement('div');
+    headerContainer.className = 'flex h-12';
+    headerContainer.style.width = `${totalWidth}px`;
     
     // Create day headers
     for (let d = 0; d < days; d++) {
@@ -1271,17 +1320,19 @@ function renderCalendarGrid() {
         dayDate.setDate(dayDate.getDate() + d);
         
         const dayHeader = document.createElement('div');
-        dayHeader.className = 'flex-1 text-center text-sm font-medium text-gray-700 py-3 border-r border-gray-200 last:border-r-0';
+        dayHeader.className = 'text-center text-sm font-medium text-gray-700 py-3 border-r border-gray-200';
+        dayHeader.style.width = `${totalWidth / days}px`;
         dayHeader.textContent = dayDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         
-        header.appendChild(dayHeader);
+        headerContainer.appendChild(dayHeader);
     }
-    container.appendChild(header);
+    daysHeader.appendChild(headerContainer);
     
     // Create grid container
     const grid = document.createElement('div');
     grid.className = 'relative';
     grid.style.height = `${app.hackathonSettings.duration * 80}px`; // 80px per hour
+    grid.style.width = `${totalWidth}px`;
     
     // Create hour grid lines
     for (let h = 0; h <= app.hackathonSettings.duration; h++) {
@@ -1297,67 +1348,191 @@ function renderCalendarGrid() {
     
     for (let d = 0; d < days; d++) {
         const dayColumn = document.createElement('div');
-        dayColumn.className = 'flex-1 border-r border-gray-200 last:border-r-0';
+        dayColumn.className = 'border-r border-gray-200';
+        dayColumn.style.width = `${totalWidth / days}px`;
         dayColumns.appendChild(dayColumn);
     }
     grid.appendChild(dayColumns);
     
-    // Render tasks
+    // Render tasks with multi-day support
     app.allTasks.forEach(task => {
-        const taskElement = createTaskElement(task, startDate, days);
-        if (taskElement) {
-            grid.appendChild(taskElement);
-        }
+        const taskElements = createTaskElements(task, startDate, days, totalWidth);
+        taskElements.forEach(el => grid.appendChild(el));
     });
     
     container.appendChild(grid);
+    
+    // Set up scrollbar content width
+    if (scrollbarContent) {
+        scrollbarContent.style.width = `${totalWidth}px`;
+    }
+    
+    // Set up synchronized scrolling
+    setupSynchronizedScrolling();
 }
 
-// Create task element for calendar
-function createTaskElement(task, calendarStart, totalDays) {
-    const member = app.teamMembers.find(m => m.id === task.assignedTo);
-    if (!member) return null;
+// Create task elements (handling multi-day tasks)
+function createTaskElements(task, calendarStart, totalDays, totalWidth) {
+    const elements = [];
     
-    // Calculate position
+    // Handle both single assignee (legacy) and multiple assignees
+    const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+    const assignedMembers = assignees.map(id => app.teamMembers.find(m => m.id === id)).filter(m => m);
+    
+    if (assignedMembers.length === 0) return elements;
+    
     const taskStart = new Date(task.startDate);
     const taskEnd = new Date(task.endDate);
+    const calendarEnd = calculateEndDate(calendarStart, app.hackathonSettings.duration);
     
-    // Calculate which day column
-    const dayOffset = Math.floor((taskStart - calendarStart) / (1000 * 60 * 60 * 24));
-    if (dayOffset < 0 || dayOffset >= totalDays) return null;
+    // Skip tasks outside calendar range
+    if (taskEnd < calendarStart || taskStart > calendarEnd) return elements;
     
-    // Calculate vertical position (minutes from start of hackathon)
-    const minutesFromStart = (taskStart - calendarStart) / (1000 * 60);
-    const topPosition = (minutesFromStart / 60) * 80; // 80px per hour
+    // Adjust task dates to calendar bounds
+    const effectiveStart = new Date(Math.max(taskStart, calendarStart));
+    const effectiveEnd = new Date(Math.min(taskEnd, calendarEnd));
     
-    // Calculate height
-    const durationMinutes = (taskEnd - taskStart) / (1000 * 60);
-    const height = (durationMinutes / 60) * 80;
+    // Calculate starting day
+    const startDay = Math.floor((effectiveStart - calendarStart) / (1000 * 60 * 60 * 24));
+    const endDay = Math.floor((effectiveEnd - calendarStart) / (1000 * 60 * 60 * 24));
     
-    // Calculate horizontal position
-    const dayWidth = 100 / totalDays;
-    const left = dayOffset * dayWidth;
+    // Create task element for each day it spans
+    for (let day = startDay; day <= endDay && day < totalDays; day++) {
+        const dayStart = new Date(calendarStart);
+        dayStart.setDate(dayStart.getDate() + day);
+        dayStart.setHours(0, 0, 0, 0);
+        
+        const dayEnd = new Date(dayStart);
+        dayEnd.setDate(dayEnd.getDate() + 1);
+        
+        // Calculate task bounds for this day
+        const segmentStart = new Date(Math.max(effectiveStart, dayStart));
+        const segmentEnd = new Date(Math.min(effectiveEnd, dayEnd));
+        
+        // Skip if segment is invalid
+        if (segmentStart >= segmentEnd) continue;
+        
+        // Calculate position
+        const minutesFromDayStart = (segmentStart - dayStart) / (1000 * 60);
+        const topPosition = ((segmentStart - calendarStart) / (1000 * 60)) / 60 * 80;
+        
+        // Calculate height
+        const durationMinutes = (segmentEnd - segmentStart) / (1000 * 60);
+        const height = (durationMinutes / 60) * 80;
+        
+        // Calculate horizontal position
+        const dayWidth = totalWidth / totalDays;
+        const left = day * dayWidth;
+        
+        const taskEl = document.createElement('div');
+        
+        // Use gradient if multiple assignees, solid color if single
+        if (assignedMembers.length > 1) {
+            const colors = assignedMembers.map((member, index) => {
+                const color = getComputedStyle(document.documentElement).getPropertyValue(`--team-color-${member.colorIndex + 1}`);
+                const percentage = (index * 100) / (assignedMembers.length - 1);
+                return `${color} ${percentage}%`;
+            });
+            taskEl.style.background = `linear-gradient(to right, ${colors.join(', ')})`;
+        } else {
+            taskEl.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue(`--team-color-${assignedMembers[0].colorIndex + 1}`);
+        }
+        
+        taskEl.className = `absolute rounded px-2 py-1 cursor-pointer hover:shadow-lg transition-shadow text-white text-xs overflow-hidden`;
+        taskEl.style.top = `${topPosition}px`;
+        taskEl.style.height = `${height - 4}px`; // -4 for padding
+        taskEl.style.left = `${left + 2}px`; // 2px margin
+        taskEl.style.width = `${dayWidth - 4}px`; // -4px for margins
+        taskEl.style.zIndex = '10';
+        
+        // Add special styling for multi-day tasks
+        if (day === startDay && day < endDay) {
+            taskEl.style.borderTopRightRadius = '0';
+            taskEl.style.borderBottomRightRadius = '0';
+            taskEl.style.marginRight = '0';
+        } else if (day === endDay && day > startDay) {
+            taskEl.style.borderTopLeftRadius = '0';
+            taskEl.style.borderBottomLeftRadius = '0';
+            taskEl.style.marginLeft = '0';
+        } else if (day > startDay && day < endDay) {
+            taskEl.style.borderRadius = '0';
+            taskEl.style.marginLeft = '0';
+            taskEl.style.marginRight = '0';
+        }
+        
+        taskEl.innerHTML = `
+            <div class="font-semibold truncate">${task.title}</div>
+            <div class="text-xs opacity-90">${assignedMembers.map(m => m.name).join(', ')}</div>
+            ${task.estimatedHours > 2 ? `<div class="text-xs opacity-75">${formatTime(segmentStart)} - ${formatTime(segmentEnd)}</div>` : ''}
+        `;
+        
+        taskEl.onclick = () => showTaskModal(task.id);
+        taskEl.title = `${task.title}\n${assignedMembers.map(m => m.name).join(', ')}\n${formatDate(task.startDate)} - ${formatDate(task.endDate)}`;
+        
+        elements.push(taskEl);
+    }
     
-    const taskEl = document.createElement('div');
-    taskEl.className = `absolute rounded px-2 py-1 cursor-pointer hover:shadow-lg transition-shadow text-white text-xs overflow-hidden`;
-    taskEl.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue(`--team-color-${member.colorIndex + 1}`);
-    taskEl.style.top = `${topPosition}px`;
-    taskEl.style.height = `${height - 4}px`; // -4 for padding
-    taskEl.style.left = `${left + 0.5}%`; // 0.5% margin
-    taskEl.style.width = `${dayWidth - 1}%`; // -1% for margins
-    taskEl.style.zIndex = '10';
-    
-    taskEl.innerHTML = `
-        <div class="font-semibold truncate">${formatDate(taskStart)} - ${formatDate(taskEnd)}</div>
-        <div class="truncate">${task.title}</div>
-        <div class="text-xs opacity-75">${member.name}</div>
-    `;
-    
-    taskEl.onclick = () => showTaskModal(task.id);
-    taskEl.title = `${task.title}\n${member.name}\n${formatDate(taskStart)} - ${formatDate(taskEnd)}`;
-    
-    return taskEl;
+    return elements;
 }
+
+// Format time only
+function formatTime(date) {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+}
+
+// Set up synchronized scrolling between calendar parts
+function setupSynchronizedScrolling() {
+    const scrollContainer = document.getElementById('calendar-scroll-container');
+    const daysHeader = document.getElementById('calendar-days-header');
+    const timeColumn = document.getElementById('time-column');
+    const scrollbar = document.getElementById('calendar-scrollbar');
+    
+    if (!scrollContainer || !daysHeader || !scrollbar) return;
+    
+    let isUpdating = false;
+    
+    // Sync horizontal scrolling
+    const syncHorizontalScroll = (source) => {
+        if (isUpdating) return;
+        isUpdating = true;
+        
+        const scrollLeft = source.scrollLeft;
+        
+        if (source !== scrollContainer) scrollContainer.scrollLeft = scrollLeft;
+        if (source !== daysHeader) daysHeader.scrollLeft = scrollLeft;
+        if (source !== scrollbar) scrollbar.scrollLeft = scrollLeft;
+        
+        setTimeout(() => { isUpdating = false; }, 10);
+    };
+    
+    // Sync vertical scrolling with time column
+    const syncVerticalScroll = () => {
+        if (isUpdating || !timeColumn) return;
+        isUpdating = true;
+        
+        const scrollTop = scrollContainer.scrollTop;
+        timeColumn.style.transform = `translateY(-${scrollTop}px)`;
+        
+        setTimeout(() => { isUpdating = false; }, 10);
+    };
+    
+    // Add scroll event listeners
+    scrollContainer.addEventListener('scroll', () => {
+        syncHorizontalScroll(scrollContainer);
+        syncVerticalScroll();
+    });
+    
+    daysHeader.addEventListener('scroll', () => {
+        syncHorizontalScroll(daysHeader);
+    });
+    
+    scrollbar.addEventListener('scroll', () => {
+        syncHorizontalScroll(scrollbar);
+    });
+}
+
 
 // Render team members sidebar
 function renderTeamMembersSidebar() {
@@ -1371,9 +1546,16 @@ function renderTeamMembersSidebar() {
         memberItem.className = 'cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors';
         memberItem.onclick = () => showMemberTasks(member.id);
         
-        const taskCount = app.allTasks.filter(t => t.assignedTo === member.id).length;
-        const totalHours = app.allTasks.filter(t => t.assignedTo === member.id)
-            .reduce((sum, t) => sum + t.estimatedHours, 0);
+        // Count tasks where member is assigned (handle both single and multiple assignees)
+        const memberTasks = app.allTasks.filter(t => {
+            if (Array.isArray(t.assignedTo)) {
+                return t.assignedTo.includes(member.id);
+            }
+            return t.assignedTo === member.id;
+        });
+        
+        const taskCount = memberTasks.length;
+        const totalHours = memberTasks.reduce((sum, t) => sum + t.estimatedHours, 0);
         
         memberItem.innerHTML = `
             <div class="flex items-center justify-between">
@@ -1402,19 +1584,36 @@ function showMemberTasks(memberId) {
     popupName.textContent = member.name;
     popupName.className = `font-semibold mb-2 team-member-${member.colorIndex + 1} text-white px-2 py-1 rounded inline-block`;
     
-    const memberTasks = app.allTasks.filter(t => t.assignedTo === memberId);
+    // Filter tasks where member is assigned (handle both single and multiple assignees)
+    const memberTasks = app.allTasks.filter(t => {
+        if (Array.isArray(t.assignedTo)) {
+            return t.assignedTo.includes(memberId);
+        }
+        return t.assignedTo === memberId;
+    });
     
-    popupTasks.innerHTML = memberTasks.length > 0 ? memberTasks.map(task => `
-        <div class="p-2 bg-white rounded border border-gray-200 cursor-pointer hover:shadow-sm"
-             onclick="showTaskModal('${task.id}')">
-            <div class="font-medium">${task.title}</div>
-            <div class="text-xs text-gray-500">
-                ${formatDate(task.startDate)} - ${formatDate(task.endDate)}
-                (${task.estimatedHours}h)
+    popupTasks.innerHTML = memberTasks.length > 0 ? memberTasks.map(task => {
+        // Get all assignees for this task
+        const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+        const assignedMembers = assignees.map(id => app.teamMembers.find(m => m.id === id)).filter(m => m);
+        
+        return `
+            <div class="p-2 bg-white rounded border border-gray-200 cursor-pointer hover:shadow-sm"
+                 onclick="showTaskModal('${task.id}')">
+                <div class="font-medium">${task.title}</div>
+                <div class="text-xs text-gray-500">
+                    ${formatDate(task.startDate)} - ${formatDate(task.endDate)}
+                    (${task.estimatedHours}h)
+                </div>
+                <div class="text-xs text-gray-600 mt-1">${task.phase}</div>
+                ${assignedMembers.length > 1 ? `
+                    <div class="text-xs text-gray-500 mt-1">
+                        With: ${assignedMembers.filter(m => m.id !== memberId).map(m => m.name).join(', ')}
+                    </div>
+                ` : ''}
             </div>
-            <div class="text-xs text-gray-600 mt-1">${task.phase}</div>
-        </div>
-    `).join('') : '<p class="text-gray-500">No tasks assigned yet</p>';
+        `;
+    }).join('') : '<p class="text-gray-500">No tasks assigned yet</p>';
     
     // Show popup
     popup.classList.remove('hidden');
@@ -1498,14 +1697,27 @@ function showTaskModal(taskId = null) {
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="form-label">Assigned To</label>
-                        <select id="task-assignee" class="form-input">
-                            <option value="">Unassigned</option>
-                            ${app.teamMembers.map(member => `
-                                <option value="${member.id}" ${task && task.assignedTo === member.id ? 'selected' : ''}>
-                                    ${member.name}
-                                </option>
-                            `).join('')}
-                        </select>
+                        <div class="space-y-2">
+                            ${app.teamMembers.map(member => {
+                                const isAssigned = task && (
+                                    Array.isArray(task.assignedTo)
+                                        ? task.assignedTo.includes(member.id)
+                                        : task.assignedTo === member.id
+                                );
+                                return `
+                                    <label class="flex items-center">
+                                        <input type="checkbox"
+                                               name="assignee"
+                                               value="${member.id}"
+                                               ${isAssigned ? 'checked' : ''}
+                                               class="mr-2">
+                                        <span class="team-badge team-member-${member.colorIndex + 1} text-xs">
+                                            ${member.name}
+                                        </span>
+                                    </label>
+                                `;
+                            }).join('')}
+                        </div>
                     </div>
                     
                     <div>
@@ -1572,10 +1784,14 @@ function showTaskModal(taskId = null) {
     document.getElementById('task-form').addEventListener('submit', (e) => {
         e.preventDefault();
         
+        // Get selected assignees
+        const assigneeCheckboxes = document.querySelectorAll('input[name="assignee"]:checked');
+        const assignedTo = Array.from(assigneeCheckboxes).map(cb => cb.value);
+        
         const formData = {
             title: document.getElementById('task-title').value,
             description: document.getElementById('task-description').value,
-            assignedTo: document.getElementById('task-assignee').value || null,
+            assignedTo: assignedTo, // Array of member IDs
             priority: document.getElementById('task-priority').value,
             startDate: new Date(document.getElementById('task-start').value),
             endDate: new Date(document.getElementById('task-end').value),
@@ -1687,10 +1903,15 @@ function loadFromLocalStorage() {
             
             if (parsed.allTasks) {
                 app.allTasks = parsed.allTasks;
-                // Convert date strings back to Date objects
+                // Convert date strings back to Date objects and migrate assignedTo to array
                 app.allTasks.forEach(task => {
                     if (task.startDate) task.startDate = new Date(task.startDate);
                     if (task.endDate) task.endDate = new Date(task.endDate);
+                    
+                    // Migrate single assignedTo to array format
+                    if (!Array.isArray(task.assignedTo)) {
+                        task.assignedTo = task.assignedTo ? [task.assignedTo] : [];
+                    }
                 });
             }
             

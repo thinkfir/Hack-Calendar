@@ -112,20 +112,35 @@
                 <div class="flex gap-4">
                     <!-- Main Calendar Container -->
                     <div class="flex-1 bg-white rounded-lg shadow-md overflow-hidden">
-                        <div class="flex h-[700px]">
-                            <!-- Time Column -->
-                            <div class="w-20 border-r border-gray-200 bg-gray-50">
-                                <div class="h-12 border-b border-gray-200"></div>
-                                <div id="time-column" class="relative">
-                                    <!-- Time slots will be rendered here -->
+                        <div class="flex flex-col h-[700px]">
+                            <!-- Calendar Header (Days) - Fixed -->
+                            <div id="calendar-header" class="flex-shrink-0 flex">
+                                <div class="w-20 bg-gray-50 border-r border-b border-gray-200 h-12"></div>
+                                <div id="calendar-days-header" class="flex-1 overflow-x-hidden">
+                                    <!-- Day headers will be rendered here -->
                                 </div>
                             </div>
                             
-                            <!-- Calendar Grid -->
-                            <div class="flex-1 overflow-auto">
-                                <div id="calendar-container">
-                                    <!-- Calendar will be rendered here -->
+                            <!-- Calendar Body -->
+                            <div class="flex-1 flex overflow-hidden">
+                                <!-- Time Column - Fixed -->
+                                <div class="w-20 border-r border-gray-200 bg-gray-50 overflow-hidden">
+                                    <div id="time-column" class="relative">
+                                        <!-- Time slots will be rendered here -->
+                                    </div>
                                 </div>
+                                
+                                <!-- Calendar Grid - Scrollable -->
+                                <div id="calendar-scroll-container" class="flex-1 overflow-auto">
+                                    <div id="calendar-container">
+                                        <!-- Calendar will be rendered here -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Horizontal Scrollbar for Multi-day Support -->
+                            <div id="calendar-scrollbar" class="h-4 bg-gray-100 border-t border-gray-200 overflow-x-auto">
+                                <div id="scrollbar-content" style="height: 1px;"></div>
                             </div>
                         </div>
                     </div>
