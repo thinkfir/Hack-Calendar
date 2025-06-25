@@ -1714,8 +1714,59 @@ function loadFromLocalStorage() {
 
 // Clear local storage
 function clearLocalStorage() {
-    // Placeholder function
-    // Will clear all saved data
+    if (confirm('Are you sure you want to clear all data and reset the application? This action cannot be undone.')) {
+        // Clear all stored data
+        localStorage.removeItem('hackmanagerData');
+        localStorage.removeItem('openai_api_key');
+        
+        // Reset application state
+        app.currentPage = 'ai-assistant';
+        app.hackathonSettings = {
+            name: '',
+            startDate: null,
+            duration: null
+        };
+        app.teamMembers = [];
+        app.allTasks = [];
+        app.calendarData = {
+            days: [],
+            currentView: 'week'
+        };
+        app.projectIdea = '';
+        app.selectedMemberId = null;
+        
+        // Clear form inputs
+        if (elements.hackathonName) elements.hackathonName.value = '';
+        if (elements.startDate) elements.startDate.value = '';
+        if (elements.duration) elements.duration.value = '48';
+        if (elements.projectIdeaInput) elements.projectIdeaInput.value = '';
+        
+        // Clear API key input
+        const apiKeyInput = document.getElementById('openai-api-key');
+        if (apiKeyInput) apiKeyInput.value = '';
+        
+        // Reset radio buttons
+        const localAIRadio = document.querySelector('input[name="ai-mode"][value="local"]');
+        if (localAIRadio) localAIRadio.checked = true;
+        
+        // Hide API key section
+        const apiKeySection = document.getElementById('api-key-section');
+        if (apiKeySection) apiKeySection.classList.add('hidden');
+        
+        // Clear AI response
+        if (elements.aiResponse) {
+            elements.aiResponse.innerHTML = '';
+            elements.aiResponse.classList.add('hidden');
+        }
+        
+        // Update UI
+        renderTeamMembers();
+        updateTeamStats();
+        
+        // Show success message and redirect to settings
+        alert('All data has been cleared successfully. The application has been reset.');
+        showPage('settings');
+    }
 }
 
 // ========== Export/Import Functions ==========
