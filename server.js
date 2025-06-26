@@ -12,7 +12,21 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 app.use(cors());
 app.use(express.json());
 
+// Simple per-IP rate limiting for Advanced AI (Groq proxy)
+const RATE_LIMIT = 5; // Max requests per IP per hour
+const ipUsage = {};
+
+setInterval(() => {
+  // Reset usage every hour
+  for (const ip in ipUsage) delete ipUsage[ip];
+}, 60 * 60 * 1000);
+
 app.post('/groq', async (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+  ipUsage[ip] = (ipUsage[ip] || 0) + 1;
+  if (ipUsage[ip] > RATE_LIMIT) {
+    return res.status(429).json({ error: 'Usage limit reached for Advanced AI. Please try again later.' });
+  }
   try {
     const { messages, model = 'mixtral-8x7b-32768', temperature = 0.7, max_tokens = 2000 } = req.body;
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
