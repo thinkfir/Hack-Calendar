@@ -308,13 +308,15 @@ aside {
     
     main {
         margin-left: 0;
+
     }
 }
 
 @media (max-width: 768px) {
     .modal-content {
         width: 95%;
-        padding: 1.5rem;
+        padding: 1.5rem; 
+
     }
     
     .calendar-cell {
@@ -322,3 +324,4 @@ aside {
         font-size: 0.875rem;
     }
 }
+
