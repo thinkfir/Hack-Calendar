@@ -123,6 +123,16 @@ function initializeEventListeners() {
                 if (savedProvider === 'other') {
                     apiEndpointSection.classList.remove('hidden');
                 }
+                // Show API key input for custom
+                if (apiKeyInput) apiKeyInput.parentElement.style.display = '';
+            } else if (e.target.value === 'groq') {
+                apiKeySection.classList.remove('hidden');
+                providerSelect.value = 'groq';
+                providerSelect.dispatchEvent(new Event('change'));
+                // Hide endpoint field for Groq
+                apiEndpointSection.classList.add('hidden');
+                // Hide API key input for Groq
+                if (apiKeyInput) apiKeyInput.parentElement.style.display = 'none';
             } else {
                 apiKeySection.classList.add('hidden');
                 modelSelectSection.classList.add('hidden');
@@ -579,6 +589,8 @@ async function generateTasksFromIdea() {
             return;
         }
     }
+    // For Groq mode, do not require user API key (handled by backend)
+    // Remove the check for Groq API key input
     
     // Save the project idea
     saveProjectIdea(idea);
@@ -611,6 +623,9 @@ async function generateTasksFromIdea() {
             updateProgress(20, 'Connecting to AI provider...');
             const provider = document.getElementById('ai-provider').value;
             generatedTasks = await generateTasksWithAI(idea, provider);
+        } else if (selectedMode === 'groq') {
+            updateProgress(20, 'Connecting to Groq...');
+            generatedTasks = await generateTasksWithAI(idea, 'groq');
         } else {
             // Use local generation with progress updates
             updateProgress(10, 'Analyzing project requirements...');
@@ -656,7 +671,10 @@ async function generateTasksFromIdea() {
 
 // Generate tasks using selected AI provider
 async function generateTasksWithAI(projectIdea, provider) {
-    const apiKey = document.getElementById('api-key').value;
+    let apiKey = '';
+    if (provider !== 'groq') {
+        apiKey = document.getElementById('api-key').value;
+    }
     const startDate = new Date(app.hackathonSettings.startDate);
     const totalHours = app.hackathonSettings.duration;
     const teamMembers = app.teamMembers;
@@ -666,7 +684,7 @@ async function generateTasksWithAI(projectIdea, provider) {
     if (modelSelect && ['groq', 'openai', 'anthropic'].includes(provider)) {
         model = modelSelect.value;
     }
-    
+
     const prompt = `You are a hackathon project manager. Generate a detailed task breakdown for a ${totalHours}-hour hackathon project.
 
 Project Idea: ${projectIdea}
@@ -715,14 +733,14 @@ Return ONLY a JSON array of task objects.`;
         
         if (provider === 'groq') {
             // Groq uses OpenAI-compatible format with their fast models
-            response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            // Use backend proxy for Groq (no API key needed on frontend)
+            response = await fetch('/groq', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: model, // Use selected model
+                    model: model,
                     messages: [
                         {
                             role: 'system',
