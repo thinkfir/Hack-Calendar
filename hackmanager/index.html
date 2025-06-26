@@ -59,75 +59,23 @@
                 <h2 class="text-3xl font-bold text-gray-800 mb-6">AI Project Assistant</h2>
                 
                 <div class="bg-white rounded-lg shadow-md p-8">
-                    <div class="mb-6">
-                        <h3 class="text-xl font-semibold mb-4 text-gray-700">Describe Your Project Idea</h3>
-                        <textarea id="project-idea-input"
-                                  class="w-full h-40 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                  placeholder="Describe your hackathon project idea in detail. Include the problem you're solving, your target audience, and key features..."></textarea>
-                    </div>
-                    
-                    <!-- AI Mode Selection -->
-                    <div class="mb-6 p-4 bg-gray-50 rounded-lg">
-                        <h4 class="font-semibold mb-3 text-gray-700">AI Generation Mode</h4>
-                        <div class="space-y-3">
-                            <label class="flex items-center">
-                                <input type="radio" name="ai-mode" value="local" checked class="mr-2">
-                                <span class="text-gray-700">Local AI (Free, Offline)</span>
-                            </label>
-                            <label class="flex items-center">
-                                <input type="radio" name="ai-mode" value="groq" class="mr-2">
-                                <span class="text-gray-700">Groq (Your API Key)</span>
-                            </label>
-                            <label class="flex items-center">
-                                <input type="radio" name="ai-mode" value="custom" class="mr-2">
-                                <span class="text-gray-700">Custom AI Provider (Requires API Key)</span>
-                            </label>
+                    <!-- Chat UI -->
+                    <div id="chat-container" class="mb-6">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-700">Chat with the AI Assistant</h3>
+                        <div id="chat-history" class="bg-gray-50 border border-gray-200 rounded-lg p-4 h-64 overflow-y-auto mb-4" style="min-height: 16rem; max-height: 24rem;">
+                            <!-- Messages will appear here -->
                         </div>
-                        
-                        <!-- API Provider Selection and Key Input (Hidden by default) -->
-                        <div id="api-key-section" class="mt-4 hidden space-y-4">
-                            <div>
-                                <label for="ai-provider" class="form-label">AI Provider</label>
-                                <select id="ai-provider" class="form-input">
-                                    <option value="groq">Groq (Fast & Free)</option>
-                                    <option value="openai">OpenAI (GPT-4/GPT-3.5)</option>
-                                    <option value="anthropic">Anthropic (Claude)</option>
-                                    <option value="google">Google (Gemini)</option>
-                                    <option value="cohere">Cohere</option>
-                                    <option value="other">Other (OpenAI Compatible)</option>
-                                </select>
-                            </div>
+                        <form id="chat-form" class="flex gap-2">
+                            <input type="text" id="chat-input" class="flex-1 form-input" placeholder="Type your message..." autocomplete="off">
+                            <button type="submit" class="btn btn-primary">Send</button>
+                        </form>
+                    </div>
+                    <!-- End Chat UI -->
 
-                            <!-- Model Selection Dropdown -->
-                            <div id="model-select-section" class="hidden">
-                                <label for="ai-model" class="form-label">Model</label>
-                                <select id="ai-model" class="form-input">
-                                    <option value="mixtral-8x7b-32768">Mixtral (Groq)</option>
-                                    <option value="gpt-4">GPT-4 (OpenAI)</option>
-                                    <option value="claude-3-opus-20240229">Claude 3 Opus (Anthropic)</option>
-                                </select>
-                            </div>
-                            
-                            <div>
-                                <label for="api-key" class="form-label">API Key</label>
-                                <input type="password" id="api-key" class="form-input"
-                                       placeholder="Enter your API key..."
-                                       autocomplete="off">
-                                <p class="text-xs text-gray-500 mt-1">Your API key is stored locally and never sent to our servers</p>
-                            </div>
-                            
-                            <div id="api-endpoint-section" class="hidden">
-                                <label for="api-endpoint" class="form-label">API Endpoint (Optional)</label>
-                                <input type="text" id="api-endpoint" class="form-input"
-                                       placeholder="https://api.example.com/v1/chat/completions">
-                                <p class="text-xs text-gray-500 mt-1">Only needed for custom/self-hosted models</p>
-                            </div>
-                        </div>
-                    </div>
                     
-                    <button id="generate-tasks-btn" class="btn btn-primary">
-                        Generate Task Breakdown
-                    </button>
+                       
+                    
+                    <!-- Removed AI Mode Selection and Generate Button for new chat-driven flow -->
                     
                     <div id="ai-response" class="mt-8 hidden">
                         <!-- AI generated tasks will appear here -->

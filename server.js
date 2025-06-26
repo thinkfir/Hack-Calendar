@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json());
 
 // Simple per-IP rate limiting for Advanced AI (Groq proxy)
-const RATE_LIMIT = 5; // Max requests per IP per hour
+const RATE_LIMIT = Infinity; // No rate limit for Groq API requests
 const ipUsage = {};
 
 setInterval(() => {

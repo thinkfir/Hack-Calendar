@@ -81,130 +81,150 @@ function initializeEventListeners() {
     elements.navLinks.forEach(link => {
         link.addEventListener('click', handleNavigation);
     });
-    
-    // AI Assistant
-    if (elements.generateTasksBtn) {
-        elements.generateTasksBtn.addEventListener('click', generateTasksFromIdea);
+
+    // Chat UI
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatHistory = document.getElementById('chat-history');
+    let chatMessages = [
+    {
+        role: "system",
+        content: `You are an expert hackathon project manager AI. 
+Start by greeting the user and asking them to describe their project idea. 
+Guide them step-by-step: 
+1. First, help them clarify their project idea with questions and suggestions.
+2. Next, ask them to list their team members and their skills (collect names and skills interactively).
+3. Then, ask for hackathon details: name, start date, and duration (in hours).
+4. When all info is collected and the user says they're ready, summarize the project and reply with: [SCHEDULE_READY].`
     }
-    
-    // AI Mode Selection
-    const aiModeRadios = document.querySelectorAll('input[name="ai-mode"]');
-    const apiKeySection = document.getElementById('api-key-section');
-    const apiKeyInput = document.getElementById('api-key');
-    const providerSelect = document.getElementById('ai-provider');
-    const modelSelectSection = document.getElementById('model-select-section');
-    const modelSelect = document.getElementById('ai-model');
-    const apiEndpointSection = document.getElementById('api-endpoint-section');
-    const apiEndpointInput = document.getElementById('api-endpoint');
-    
-    aiModeRadios.forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            if (e.target.value === 'custom') {
-                apiKeySection.classList.remove('hidden');
-                // Load saved settings (default to Groq)
-                const savedProvider = localStorage.getItem('ai_provider') || 'groq';
-                const savedKey = localStorage.getItem(`${savedProvider}_api_key`);
-                const savedEndpoint = localStorage.getItem(`${savedProvider}_endpoint`);
-                const savedModel = localStorage.getItem(`${savedProvider}_model`) || 'mixtral-8x7b-32768';
+];
 
-                providerSelect.value = savedProvider;
-                if (savedKey) apiKeyInput.value = savedKey;
-                if (savedEndpoint && apiEndpointInput) apiEndpointInput.value = savedEndpoint;
 
-                // Show/hide model dropdown
-                if (['groq', 'openai', 'anthropic'].includes(savedProvider)) {
-                    modelSelectSection.classList.remove('hidden');
-                    if (modelSelect) modelSelect.value = savedModel;
-                } else {
-                    modelSelectSection.classList.add('hidden');
+    function renderChat() {
+        if (!chatHistory) return;
+        chatHistory.innerHTML = '';
+        chatMessages
+            .filter(m => m.role !== 'system')
+            .forEach(msg => {
+                const div = document.createElement('div');
+                div.className = `mb-2 flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`;
+                div.innerHTML = `
+                    <div class="max-w-[75%] px-4 py-2 rounded-lg ${msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}">
+                        ${msg.content}
+                    </div>
+                `;
+                chatHistory.appendChild(div);
+            });
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+
+    // State to track if schedule should be generated
+    let scheduleReady = false;
+
+    if (chatForm && chatInput && chatHistory) {
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const userMsg = chatInput.value.trim();
+            if (!userMsg) return;
+            chatMessages.push({ role: "user", content: userMsg });
+            renderChat();
+            chatInput.value = '';
+            // Show typing indicator
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'mb-2 flex justify-start';
+            typingDiv.innerHTML = `<div class="max-w-[75%] px-4 py-2 rounded-lg bg-gray-200 text-gray-800 italic opacity-70">AI is typing...</div>`;
+            chatHistory.appendChild(typingDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+
+            // Call backend (Groq) with full chat history
+            let aiReply = '';
+            try {
+                const res = await fetch('/groq', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'mixtral-8x7b-32768',
+                        messages: chatMessages,
+                        temperature: 0.7,
+                        max_tokens: 1000
+                    })
+                });
+                const data = await res.json();
+                aiReply = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+            } catch (err) {
+                aiReply = "Error contacting AI.";
+            }
+            // Remove typing indicator
+            typingDiv.remove();
+            chatMessages.push({ role: "assistant", content: aiReply });
+            renderChat();
+
+            // If the AI signals schedule is ready, extract the final idea and generate tasks
+            if (aiReply.includes('[SCHEDULE_READY]')) {
+                scheduleReady = true;
+                // Extract the final idea summary from the AI's message
+                const summary = aiReply.replace('[SCHEDULE_READY]', '').trim();
+                // Save the summary as the project idea
+                app.projectIdea = summary;
+                // Optionally, prompt for settings if not set
+                if (!validateHackathonSettings()) {
+                    alert('Please configure hackathon settings first (go to Settings page).');
+                    showPage('settings');
+                    return;
                 }
-
-                // Show endpoint field if needed
-                if (savedProvider === 'other') {
-                    apiEndpointSection.classList.remove('hidden');
+                if (app.teamMembers.length === 0) {
+                    alert('Please add at least one team member first (go to Team Setup page).');
+                    showPage('team');
+                    return;
                 }
-                // Show API key input for custom
-                if (apiKeyInput) apiKeyInput.parentElement.style.display = '';
-            } else if (e.target.value === 'groq') {
-                apiKeySection.classList.remove('hidden');
-                providerSelect.value = 'groq';
-                providerSelect.dispatchEvent(new Event('change'));
-                // Hide endpoint field for Groq
-                apiEndpointSection.classList.add('hidden');
-                // Hide API key input for Groq
-                if (apiKeyInput) apiKeyInput.parentElement.style.display = 'none';
-            } else {
-                apiKeySection.classList.add('hidden');
-                modelSelectSection.classList.add('hidden');
+                // Generate tasks using Groq
+                elements.aiResponse.innerHTML = `
+                    <div class="space-y-4">
+                        <p class="text-gray-600">🤖 AI is generating your hackathon schedule based on your finalized idea...</p>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                        <p id="progress-text" class="text-sm text-gray-500">Initializing...</p>
+                    </div>
+                `;
+                elements.aiResponse.classList.remove('hidden');
+                const updateProgress = (percent, text) => {
+                    const progressBar = document.getElementById('progress-bar');
+                    const progressText = document.getElementById('progress-text');
+                    if (progressBar) progressBar.style.width = `${percent}%`;
+                    if (progressText) progressText.textContent = text;
+                };
+                updateProgress(20, 'Connecting to Groq...');
+                // Use the same generateTasksWithAI logic but always with Groq
+                generateTasksWithAI(summary, 'groq').then(generatedTasks => {
+                    app.allTasks = [];
+                    generatedTasks.forEach(task => createTask(task));
+                    updateProgress(95, 'Organizing tasks...');
+                    setTimeout(() => {
+                        displayGeneratedTasks(generatedTasks);
+                        updateProgress(100, 'Complete!');
+                        setTimeout(() => {
+                            updateTeamStats();
+                        }, 500);
+                    }, 300);
+                }).catch(error => {
+                    elements.aiResponse.innerHTML = `
+                        <div class="text-red-600">
+                            <p class="font-semibold">Error generating tasks</p>
+                            <p class="text-sm mt-1">${error.message}</p>
+                        </div>
+                    `;
+                });
             }
         });
-    });
-    
-    // Handle provider selection
-    if (providerSelect) {
-        providerSelect.addEventListener('change', (e) => {
-            const provider = e.target.value;
-            localStorage.setItem('ai_provider', provider);
-
-            // Show/hide model dropdown
-            if (['groq', 'openai', 'anthropic'].includes(provider)) {
-                modelSelectSection.classList.remove('hidden');
-                const savedModel = localStorage.getItem(`${provider}_model`) || (provider === 'groq' ? 'mixtral-8x7b-32768' : provider === 'openai' ? 'gpt-4' : 'claude-3-opus-20240229');
-                if (modelSelect) modelSelect.value = savedModel;
-            } else {
-                modelSelectSection.classList.add('hidden');
-            }
-
-            // Show/hide endpoint field
-            if (provider === 'other') {
-                apiEndpointSection.classList.remove('hidden');
-            } else {
-                apiEndpointSection.classList.add('hidden');
-            }
-
-            // Load saved key for this provider
-            const savedKey = localStorage.getItem(`${provider}_api_key`);
-            if (savedKey && apiKeyInput) {
-                apiKeyInput.value = savedKey;
-            } else if (apiKeyInput) {
-                apiKeyInput.value = '';
-            }
-        });
-    }
-    
-    // Save API key when changed
-    if (apiKeyInput) {
-        apiKeyInput.addEventListener('change', (e) => {
-            const provider = providerSelect.value;
-            if (e.target.value) {
-                localStorage.setItem(`${provider}_api_key`, e.target.value);
-            }
-        });
+        renderChat();
     }
 
-    // Save model when changed
-    if (modelSelect) {
-        modelSelect.addEventListener('change', (e) => {
-            const provider = providerSelect.value;
-            localStorage.setItem(`${provider}_model`, e.target.value);
-        });
-    }
-    
-    // Save endpoint when changed
-    if (apiEndpointInput) {
-        apiEndpointInput.addEventListener('change', (e) => {
-            const provider = providerSelect.value;
-            if (e.target.value) {
-                localStorage.setItem(`${provider}_endpoint`, e.target.value);
-            }
-        });
-    }
-    
     // Team Management
     if (elements.addMemberBtn) {
         elements.addMemberBtn.addEventListener('click', handleAddMember);
     }
-    
+
     // Settings Form
     if (elements.settingsForm) {
         elements.settingsForm.addEventListener('submit', handleSettingsSubmit);
@@ -581,14 +601,7 @@ async function generateTasksFromIdea() {
     // Check which AI mode is selected
     const selectedMode = document.querySelector('input[name="ai-mode"]:checked').value;
     
-    if (selectedMode === 'custom') {
-        const apiKey = document.getElementById('api-key').value;
-        const provider = document.getElementById('ai-provider').value;
-        if (!apiKey) {
-            alert(`Please enter your ${provider.charAt(0).toUpperCase() + provider.slice(1)} API key.`);
-            return;
-        }
-    }
+    // No custom mode anymore
     // For Groq mode, do not require user API key (handled by backend)
     // Remove the check for Groq API key input
     
@@ -618,12 +631,7 @@ async function generateTasksFromIdea() {
     try {
         let generatedTasks;
         
-        if (selectedMode === 'custom') {
-            // Use selected AI provider
-            updateProgress(20, 'Connecting to AI provider...');
-            const provider = document.getElementById('ai-provider').value;
-            generatedTasks = await generateTasksWithAI(idea, provider);
-        } else if (selectedMode === 'groq') {
+        if (selectedMode === 'groq') {
             updateProgress(20, 'Connecting to Groq...');
             generatedTasks = await generateTasksWithAI(idea, 'groq');
         } else {
