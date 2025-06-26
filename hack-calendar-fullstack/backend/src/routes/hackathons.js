@@ -1,20 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const hackathonController = require('../controllers/hackathonController');
+const { protect } = require('../middleware/authMiddleware');
 
-// GET /api/hackathons
-router.get('/', hackathonController.getAllHackathons);
+// Protect all routes in this file
+router.use(protect);
 
-// POST /api/hackathons
-router.post('/', hackathonController.createHackathon);
+// Group routes for better organization
+router.route('/')
+  .get(hackathonController.getAllHackathons)
+  .post(hackathonController.createHackathon);
 
-// GET /api/hackathons/:id
-router.get('/:id', hackathonController.getHackathonById);
-
-// PUT /api/hackathons/:id
-router.put('/:id', hackathonController.updateHackathon);
-
-// DELETE /api/hackathons/:id
-router.delete('/:id', hackathonController.deleteHackathon);
+router.route('/:id')
+  .get(hackathonController.getHackathonById)
+  .put(hackathonController.updateHackathon)
+  .delete(hackathonController.deleteHackathon);
 
 module.exports = router;
