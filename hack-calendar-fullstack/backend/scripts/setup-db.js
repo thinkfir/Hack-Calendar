@@ -1,15 +1,45 @@
+const fs = require('fs');
+const path = require('path');
+
+// Define the path to the database file, relative to this script's location
+const dbPath = path.resolve(__dirname, '../database.sqlite');
+
+// --- Start: Delete existing database file ---
+try {
+  if (fs.existsSync(dbPath)) {
+    fs.unlinkSync(dbPath);
+    console.log('Existing database file deleted successfully.');
+  }
+} catch (err) {
+  console.error('Error deleting existing database file:', err);
+  process.exit(1); // Exit the script if we can't delete the old DB
+}
+// --- End: Delete existing database file ---
+
 const db = require('../src/config/database');
 
-const createTables = () => {
+db.serialize(() => {
+  console.log('Starting database setup...');
+
   const schema = `
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        email TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS hackathons (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
         name TEXT NOT NULL,
         start_date DATETIME NOT NULL,
         duration_hours INTEGER NOT NULL,
         project_idea TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS team_members (
@@ -92,53 +122,49 @@ const createTables = () => {
   db.exec(schema, (err) => {
     if (err) {
       console.error('Error creating tables:', err.message);
-    } else {
-      console.log('Tables created successfully.');
-      insertDefaultData();
+      return db.close();
     }
-  });
-};
+    console.log('Tables created successfully.');
 
-const insertDefaultData = () => {
-  const insertPhases = `
-    INSERT OR IGNORE INTO task_phases (name, display_order) VALUES 
-        ('planning', 1),
-        ('design', 2),
-        ('development', 3),
-        ('integration', 4),
-        ('testing', 5),
-        ('presentation', 6);
-  `;
-
-  db.exec(insertPhases, (err) => {
-    if (err) {
-      console.error('Error inserting default task phases:', err.message);
-    } else {
-      console.log('Default task phases inserted successfully.');
-      createIndexes();
-    }
-  });
-};
-
-const createIndexes = () => {
-    const indexes = `
-        CREATE INDEX IF NOT EXISTS idx_tasks_hackathon ON tasks(hackathon_id);
-        CREATE INDEX IF NOT EXISTS idx_tasks_dates ON tasks(start_date, end_date);
-        CREATE INDEX IF NOT EXISTS idx_members_hackathon ON team_members(hackathon_id);
-        CREATE INDEX IF NOT EXISTS idx_task_assignments_member ON task_assignments(member_id);
-        CREATE INDEX IF NOT EXISTS idx_task_assignments_task ON task_assignments(task_id);
+    const insertPhases = `
+      INSERT OR IGNORE INTO task_phases (name, display_order) VALUES 
+          ('planning', 1),
+          ('design', 2),
+          ('development', 3),
+          ('integration', 4),
+          ('testing', 5),
+          ('presentation', 6);
     `;
 
-    db.exec(indexes, (err) => {
-        if (err) {
-            console.error('Error creating indexes:', err.message);
-        } else {
-            console.log('Indexes created successfully.');
-        }
-        db.close();
-    });
-}
+    db.exec(insertPhases, (err) => {
+      if (err) {
+        console.error('Error inserting default task phases:', err.message);
+        return db.close();
+      }
+      console.log('Default task phases inserted successfully.');
 
-db.serialize(() => {
-  createTables();
+      const indexes = `
+          CREATE INDEX IF NOT EXISTS idx_hackathons_user ON hackathons(user_id);
+          CREATE INDEX IF NOT EXISTS idx_tasks_hackathon ON tasks(hackathon_id);
+          CREATE INDEX IF NOT EXISTS idx_tasks_dates ON tasks(start_date, end_date);
+          CREATE INDEX IF NOT EXISTS idx_members_hackathon ON team_members(hackathon_id);
+          CREATE INDEX IF NOT EXISTS idx_task_assignments_member ON task_assignments(member_id);
+          CREATE INDEX IF NOT EXISTS idx_task_assignments_task ON task_assignments(task_id);
+      `;
+
+      db.exec(indexes, (err) => {
+        if (err) {
+          console.error('Error creating indexes:', err.message);
+        } else {
+          console.log('Indexes created successfully.');
+        }
+        console.log('Database setup complete.');
+        db.close((err) => {
+          if (err) {
+            console.error('Error closing the database:', err.message);
+          }
+        });
+      });
+    });
+  });
 });
