@@ -92,6 +92,8 @@ function initializeEventListeners() {
     const apiKeySection = document.getElementById('api-key-section');
     const apiKeyInput = document.getElementById('api-key');
     const providerSelect = document.getElementById('ai-provider');
+    const modelSelectSection = document.getElementById('model-select-section');
+    const modelSelect = document.getElementById('ai-model');
     const apiEndpointSection = document.getElementById('api-endpoint-section');
     const apiEndpointInput = document.getElementById('api-endpoint');
     
@@ -103,17 +105,27 @@ function initializeEventListeners() {
                 const savedProvider = localStorage.getItem('ai_provider') || 'groq';
                 const savedKey = localStorage.getItem(`${savedProvider}_api_key`);
                 const savedEndpoint = localStorage.getItem(`${savedProvider}_endpoint`);
-                
+                const savedModel = localStorage.getItem(`${savedProvider}_model`) || 'mixtral-8x7b-32768';
+
                 providerSelect.value = savedProvider;
                 if (savedKey) apiKeyInput.value = savedKey;
                 if (savedEndpoint && apiEndpointInput) apiEndpointInput.value = savedEndpoint;
-                
+
+                // Show/hide model dropdown
+                if (['groq', 'openai', 'anthropic'].includes(savedProvider)) {
+                    modelSelectSection.classList.remove('hidden');
+                    if (modelSelect) modelSelect.value = savedModel;
+                } else {
+                    modelSelectSection.classList.add('hidden');
+                }
+
                 // Show endpoint field if needed
                 if (savedProvider === 'other') {
                     apiEndpointSection.classList.remove('hidden');
                 }
             } else {
                 apiKeySection.classList.add('hidden');
+                modelSelectSection.classList.add('hidden');
             }
         });
     });
@@ -123,14 +135,23 @@ function initializeEventListeners() {
         providerSelect.addEventListener('change', (e) => {
             const provider = e.target.value;
             localStorage.setItem('ai_provider', provider);
-            
+
+            // Show/hide model dropdown
+            if (['groq', 'openai', 'anthropic'].includes(provider)) {
+                modelSelectSection.classList.remove('hidden');
+                const savedModel = localStorage.getItem(`${provider}_model`) || (provider === 'groq' ? 'mixtral-8x7b-32768' : provider === 'openai' ? 'gpt-4' : 'claude-3-opus-20240229');
+                if (modelSelect) modelSelect.value = savedModel;
+            } else {
+                modelSelectSection.classList.add('hidden');
+            }
+
             // Show/hide endpoint field
             if (provider === 'other') {
                 apiEndpointSection.classList.remove('hidden');
             } else {
                 apiEndpointSection.classList.add('hidden');
             }
-            
+
             // Load saved key for this provider
             const savedKey = localStorage.getItem(`${provider}_api_key`);
             if (savedKey && apiKeyInput) {
@@ -148,6 +169,14 @@ function initializeEventListeners() {
             if (e.target.value) {
                 localStorage.setItem(`${provider}_api_key`, e.target.value);
             }
+        });
+    }
+
+    // Save model when changed
+    if (modelSelect) {
+        modelSelect.addEventListener('change', (e) => {
+            const provider = providerSelect.value;
+            localStorage.setItem(`${provider}_model`, e.target.value);
         });
     }
     
@@ -631,6 +660,12 @@ async function generateTasksWithAI(projectIdea, provider) {
     const startDate = new Date(app.hackathonSettings.startDate);
     const totalHours = app.hackathonSettings.duration;
     const teamMembers = app.teamMembers;
+    // Get selected model
+    let model = 'gpt-4';
+    const modelSelect = document.getElementById('ai-model');
+    if (modelSelect && ['groq', 'openai', 'anthropic'].includes(provider)) {
+        model = modelSelect.value;
+    }
     
     const prompt = `You are a hackathon project manager. Generate a detailed task breakdown for a ${totalHours}-hour hackathon project.
 
@@ -687,7 +722,7 @@ Return ONLY a JSON array of task objects.`;
                     'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
-                    model: 'mixtral-8x7b-32768', // Groq's fast model
+                    model: model, // Use selected model
                     messages: [
                         {
                             role: 'system',
@@ -710,7 +745,7 @@ Return ONLY a JSON array of task objects.`;
                     'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
-                    model: 'gpt-4',
+                    model: model,
                     messages: [
                         {
                             role: 'system',
@@ -734,7 +769,7 @@ Return ONLY a JSON array of task objects.`;
                     'anthropic-version': '2023-06-01'
                 },
                 body: JSON.stringify({
-                    model: 'claude-3-opus-20240229',
+                    model: model,
                     max_tokens: 2000,
                     temperature: 0.7,
                     system: 'You are a helpful hackathon project manager that generates detailed task breakdowns. Always respond with valid JSON arrays only.',
@@ -788,7 +823,7 @@ Return ONLY a JSON array of task objects.`;
                     'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
-                    model: 'gpt-4',
+                    model: model,
                     messages: [
                         {
                             role: 'system',

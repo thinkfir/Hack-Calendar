@@ -244,6 +244,10 @@ aside {
     font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 0.25rem;
+/* Model select spacing */
+#model-select-section {
+    margin-bottom: 0.5rem;
+}
 }
 
 /* Button Styles */
