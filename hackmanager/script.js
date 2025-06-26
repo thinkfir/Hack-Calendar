@@ -26,6 +26,133 @@ const app = {
         currentView: 'week' // 'week' or 'month'
     }
 };
+
+function showOnboardingStep(step = 1) {
+    const modal = document.getElementById('onboarding-modal');
+    const content = document.getElementById('onboarding-content');
+    modal.style.display = 'flex';
+
+    if (step === 1) {
+        content.innerHTML = `
+            <h2 class="text-2xl font-bold mb-4">Welcome! Let's set up your hackathon</h2>
+            <label class="block mb-2">Hackathon Name</label>
+            <input id="onb-hack-name" class="form-input mb-4 w-full" placeholder="e.g. Hack the North">
+            <label class="block mb-2">Start Date & Time</label>
+            <input id="onb-hack-date" type="datetime-local" class="form-input mb-4 w-full">
+            <label class="block mb-2">Duration (hours)</label>
+            <select id="onb-hack-duration" class="form-input mb-4 w-full">
+                <option value="24">24</option>
+                <option value="36">36</option>
+                <option value="48" selected>48</option>
+                <option value="72">72</option>
+            </select>
+            <button id="onb-next-1" class="btn btn-primary w-full">Next: Team Setup</button>
+        `;
+        document.getElementById('onb-next-1').onclick = () => {
+            app.hackathonSettings.name = document.getElementById('onb-hack-name').value;
+            app.hackathonSettings.startDate = new Date(document.getElementById('onb-hack-date').value);
+            app.hackathonSettings.duration = parseInt(document.getElementById('onb-hack-duration').value);
+            showOnboardingStep(2);
+        };
+    } else if (step === 2) {
+        content.innerHTML = `
+            <h2 class="text-2xl font-bold mb-4">Team Setup</h2>
+            <div id="onb-team-list" class="mb-4"></div>
+            <input id="onb-team-input" class="form-input mb-2 w-full" placeholder="Add team member name">
+            <button id="onb-add-member" class="btn btn-secondary mb-4 w-full">Add Member</button>
+            <button id="onb-next-2" class="btn btn-primary w-full">Next: Project Idea</button>
+        `;
+        const teamList = document.getElementById('onb-team-list');
+        function renderTeam() {
+            teamList.innerHTML = app.teamMembers.map(m => `<div class="mb-1">${m.name}</div>`).join('');
+        }
+        renderTeam();
+        document.getElementById('onb-add-member').onclick = () => {
+            const name = document.getElementById('onb-team-input').value.trim();
+            if (name) {
+                app.teamMembers.push({ id: Date.now().toString(), name, skills: [] });
+                document.getElementById('onb-team-input').value = '';
+                renderTeam();
+            }
+        };
+        document.getElementById('onb-next-2').onclick = () => showOnboardingStep(3);
+    } else if (step === 3) {
+        content.innerHTML = `
+            <h2 class="text-2xl font-bold mb-4">Describe Your Project Idea</h2>
+            <div id="onb-ai-chat" class="bg-gray-50 border border-gray-200 rounded-lg p-4 h-64 overflow-y-auto mb-4"></div>
+            <form id="onb-chat-form" class="flex gap-2">
+                <input type="text" id="onb-chat-input" class="flex-1 form-input" placeholder="Type your idea..." autocomplete="off">
+                <button type="submit" class="btn btn-primary">Send</button>
+            </form>
+        `;
+        // Simple AI chat logic (reuse your chat logic here)
+        const chatDiv = document.getElementById('onb-ai-chat');
+        const chatForm = document.getElementById('onb-chat-form');
+        const chatInput = document.getElementById('onb-chat-input');
+        let chatMessages = [
+            { role: "system", content: "You are an expert hackathon project manager AI. Help the user refine their project idea. When they say they're ready, reply with [SCHEDULE_READY]." }
+        ];
+        function renderChat() {
+            chatDiv.innerHTML = chatMessages.filter(m => m.role !== 'system').map(msg =>
+                `<div class="mb-2 flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-[75%] px-4 py-2 rounded-lg ${msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}">
+                        ${msg.content}
+                    </div>
+                </div>`
+            ).join('');
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        }
+        chatForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const userMsg = chatInput.value.trim();
+            if (!userMsg) return;
+            chatMessages.push({ role: "user", content: userMsg });
+            renderChat();
+            chatInput.value = '';
+            // Typing indicator
+            chatDiv.innerHTML += `<div class="mb-2 flex justify-start"><div class="max-w-[75%] px-4 py-2 rounded-lg bg-gray-200 text-gray-800 italic opacity-70">AI is typing...</div></div>`;
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+            // Call backend
+            let aiReply = '';
+            try {
+                const res = await fetch('/groq', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'mixtral-8x7b-32768',
+                        messages: chatMessages,
+                        temperature: 0.7,
+                        max_tokens: 1000
+                    })
+                });
+                const data = await res.json();
+                aiReply = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+            } catch (err) {
+                aiReply = "Error contacting AI.";
+            }
+            chatMessages.push({ role: "assistant", content: aiReply });
+            renderChat();
+            if (aiReply.includes('[SCHEDULE_READY]')) {
+                setTimeout(() => showOnboardingStep(4, aiReply.replace('[SCHEDULE_READY]', '').trim()), 1000);
+            }
+        };
+        renderChat();
+    } else if (step === 4) {
+        // Morph to dashboard
+        modal.style.opacity = 1;
+        content.innerHTML = `
+            <h2 class="text-2xl font-bold mb-4">All Set!</h2>
+            <p class="mb-4">Your hackathon workspace is ready. Let's get started!</p>
+            <button id="onb-finish" class="btn btn-primary w-full">Go to Dashboard</button>
+        `;
+        document.getElementById('onb-finish').onclick = () => {
+            modal.style.transition = 'opacity 0.5s';
+            modal.style.opacity = 0;
+            setTimeout(() => { modal.style.display = 'none'; }, 500);
+        };
+    }
+}
+
 //waakatime please start working again my frien
 // DOM Elements (will be populated after DOMContentLoaded)
 const elements = {};
@@ -98,7 +225,6 @@ Guide them step-by-step:
 4. When all info is collected and the user says they're ready, summarize the project and reply with: [SCHEDULE_READY].`
     }
 ];
-
 
     function renderChat() {
         if (!chatHistory) return;
@@ -235,13 +361,19 @@ Guide them step-by-step:
 function initializeApp() {
     // Load data from local storage
     loadFromLocalStorage();
-    
+
     // Show the default page
     showPage('ai-assistant');
-    
+
     // Initialize components
     updateTeamStats();
+
+    // --- ADD THIS HERE ---
+    if (!app.hackathonSettings.name || !app.teamMembers.length) {
+        showOnboardingStep(1);
+    }
 }
+
 
 // ========== Navigation Functions ==========
 
