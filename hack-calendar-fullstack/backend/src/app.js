@@ -10,6 +10,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
+const hackathonRoutes = require('./routes/hackathons');
+
+app.use('/api/hackathons', hackathonRoutes);
+
 app.get('/', (req, res) => {
   res.send('Hack-Calendar API is running!');
 });
