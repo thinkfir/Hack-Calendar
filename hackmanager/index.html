@@ -3,11 +3,275 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hack Calendar</title>
-    <link rel="stylesheet" href="hackmanager/style.css">
+    <title>HackManager - Hackathon Project Planner</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div id="root"></div>
-    <script src="frontend/build/static/js/bundle.js"></script>
+<body class="bg-gray-50 min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white shadow-lg h-screen fixed left-0 top-0" style="position: fixed; left: 0; top: 0; width: 256px; height: 100vh; background-color: white; box-shadow: 2px 0 4px rgba(0,0,0,0.1); z-index: 50;">
+        <div class="p-6 bg-blue-600 text-white">
+            <h1 class="text-2xl font-bold">HackManager</h1>
+            <p class="text-blue-100 text-sm mt-1">Project Planner</p>
+        </div>
+        
+        <nav class="mt-6">
+            <a href="#" data-page="ai-assistant" class="nav-link active flex items-center px-6 py-3 text-gray-700 hover:bg-gray-100 transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+                AI Assistant
+            </a>
+            
+            <a href="#" data-page="calendar" class="nav-link flex items-center px-6 py-3 text-gray-700 hover:bg-gray-100 transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                Calendar & Tasks
+            </a>
+            
+            <a href="#" data-page="team" class="nav-link flex items-center px-6 py-3 text-gray-700 hover:bg-gray-100 transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                </svg>
+                Team Setup
+            </a>
+            
+            <a href="#" data-page="settings" class="nav-link flex items-center px-6 py-3 text-gray-700 hover:bg-gray-100 transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                Settings
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 ml-64">
+        <div class="p-8">
+            <!-- AI Assistant Page (Main) -->
+            <div id="ai-assistant-page" class="page active">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">AI Project Assistant</h2>
+                
+                <div class="bg-white rounded-lg shadow-md p-8">
+                    <div class="mb-6">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-700">Describe Your Project Idea</h3>
+                        <textarea id="project-idea-input"
+                                  class="w-full h-40 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  placeholder="Describe your hackathon project idea in detail. Include the problem you're solving, your target audience, and key features..."></textarea>
+                    </div>
+                    
+                    <!-- AI Mode Selection -->
+                    <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                        <h4 class="font-semibold mb-3 text-gray-700">AI Generation Mode</h4>
+                        <div class="space-y-3">
+                            <label class="flex items-center">
+                                <input type="radio" name="ai-mode" value="local" checked class="mr-2">
+                                <span class="text-gray-700">Local AI (Free, Offline)</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="ai-mode" value="custom" class="mr-2">
+                                <span class="text-gray-700">Custom AI Provider (Requires API Key)</span>
+                            </label>
+                        </div>
+                        
+                        <!-- API Provider Selection and Key Input (Hidden by default) -->
+                        <div id="api-key-section" class="mt-4 hidden space-y-4">
+                            <div>
+                                <label for="ai-provider" class="form-label">AI Provider</label>
+                                <select id="ai-provider" class="form-input">
+                                    <option value="groq">Groq (Fast & Free)</option>
+                                    <option value="openai">OpenAI (GPT-4/GPT-3.5)</option>
+                                    <option value="anthropic">Anthropic (Claude)</option>
+                                    <option value="google">Google (Gemini)</option>
+                                    <option value="cohere">Cohere</option>
+                                    <option value="other">Other (OpenAI Compatible)</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label for="api-key" class="form-label">API Key</label>
+                                <input type="password" id="api-key" class="form-input"
+                                       placeholder="Enter your API key..."
+                                       autocomplete="off">
+                                <p class="text-xs text-gray-500 mt-1">Your API key is stored locally and never sent to our servers</p>
+                            </div>
+                            
+                            <div id="api-endpoint-section" class="hidden">
+                                <label for="api-endpoint" class="form-label">API Endpoint (Optional)</label>
+                                <input type="text" id="api-endpoint" class="form-input"
+                                       placeholder="https://api.example.com/v1/chat/completions">
+                                <p class="text-xs text-gray-500 mt-1">Only needed for custom/self-hosted models</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button id="generate-tasks-btn" class="btn btn-primary">
+                        Generate Task Breakdown
+                    </button>
+                    
+                    <div id="ai-response" class="mt-8 hidden">
+                        <!-- AI generated tasks will appear here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar Page -->
+            <div id="calendar-page" class="page hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-3xl font-bold text-gray-800">Calendar View</h2>
+                    <div class="text-sm text-gray-600" id="calendar-date-range">
+                        <!-- Date range will be displayed here -->
+                    </div>
+                </div>
+                
+                <div class="flex gap-4">
+                    <!-- Main Calendar Container -->
+                    <div class="flex-1 bg-white rounded-lg shadow-md overflow-hidden">
+                        <div class="flex flex-col h-[700px]">
+                            <!-- Calendar Header (Days) - Fixed -->
+                            <div id="calendar-header" class="flex-shrink-0 flex">
+                                <div class="w-20 bg-gray-50 border-r border-b border-gray-200 h-12"></div>
+                                <div id="calendar-days-header" class="flex-1 overflow-x-hidden">
+                                    <!-- Day headers will be rendered here -->
+                                </div>
+                            </div>
+                            
+                            <!-- Calendar Body -->
+                            <div class="flex-1 flex overflow-hidden">
+                                <!-- Time Column - Fixed -->
+                                <div class="w-20 border-r border-gray-200 bg-gray-50 overflow-hidden">
+                                    <div id="time-column" class="relative">
+                                        <!-- Time slots will be rendered here -->
+                                    </div>
+                                </div>
+                                
+                                <!-- Calendar Grid - Scrollable -->
+                                <div id="calendar-scroll-container" class="flex-1 overflow-auto">
+                                    <div id="calendar-container">
+                                        <!-- Calendar will be rendered here -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Horizontal Scrollbar for Multi-day Support -->
+                            <div id="calendar-scrollbar" class="h-4 bg-gray-100 border-t border-gray-200 overflow-x-auto">
+                                <div id="scrollbar-content" style="height: 1px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Team Members Sidebar -->
+                    <div class="w-64 bg-white rounded-lg shadow-md p-4">
+                        <h3 class="text-lg font-semibold mb-4 text-gray-700">Team Members</h3>
+                        <div id="team-members-calendar-list" class="space-y-2">
+                            <!-- Team members will be listed here -->
+                        </div>
+                        
+                        <!-- Member Tasks Popup -->
+                        <div id="member-tasks-popup" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
+                            <h4 class="font-semibold mb-2" id="popup-member-name"></h4>
+                            <div id="popup-member-tasks" class="space-y-2 text-sm">
+                                <!-- Member's tasks will be shown here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team Setup Page -->
+            <div id="team-page" class="page hidden">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Team Setup</h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Team Members List -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-700">Team Members</h3>
+                        <div id="team-members-simple-list" class="space-y-2 mb-4">
+                            <!-- Simple team members list will be here -->
+                        </div>
+                        <button id="add-member-btn" class="btn btn-secondary w-full">
+                            Add Team Member
+                        </button>
+                    </div>
+                    
+                    <!-- Member Details -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-700">Member Details</h3>
+                        <div id="member-details">
+                            <p class="text-gray-500">Select a team member to edit their details</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Team Statistics -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-700">Team Statistics</h3>
+                        <div id="team-stats">
+                            <!-- Team statistics will be shown here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Page -->
+            <div id="settings-page" class="page hidden">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Hackathon Settings</h2>
+                
+                <div class="bg-white rounded-lg shadow-md p-6 max-w-2xl">
+                    <form id="settings-form" class="space-y-6">
+                        <div>
+                            <label for="hackathon-name" class="form-label">Hackathon Name</label>
+                            <input type="text" id="hackathon-name" class="form-input" placeholder="Enter hackathon name">
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="start-date" class="form-label">Start Date</label>
+                                <input type="datetime-local" id="start-date" class="form-input">
+                            </div>
+                            
+                            <div>
+                                <label for="duration" class="form-label">Duration (hours)</label>
+                                <input type="number" id="duration" class="form-input" placeholder="48" min="1">
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            Save Settings
+                        </button>
+                    </form>
+                    
+                    <!-- Reset Section -->
+                    <div class="mt-8 pt-6 border-t border-gray-200">
+                        <h3 class="text-lg font-semibold mb-4 text-gray-700">Reset Application</h3>
+                        <p class="text-sm text-gray-600 mb-4">
+                            This will clear all data including tasks, team members, and settings. This action cannot be undone.
+                        </p>
+                        <button onclick="clearLocalStorage()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors">
+                            <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            Clear All Data & Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Task Edit Modal (Hidden by default) -->
+    <div id="task-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <!-- Modal content placeholder -->
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="script.js"></script>
 </body>
 </html>
