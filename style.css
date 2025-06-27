@@ -1,331 +1,441 @@
-/* Custom Styles for HackManager */
-
-/* Root Variables */
-:root {
-    /* Team Member Colors - Distinct, accessible colors for up to 8 team members */
-    --team-color-1: #3B82F6; /* Blue */
-    --team-color-2: #10B981; /* Emerald */
-    --team-color-3: #F59E0B; /* Amber */
-    --team-color-4: #EF4444; /* Red */
-    --team-color-5: #8B5CF6; /* Violet */
-    --team-color-6: #EC4899; /* Pink */
-    --team-color-7: #14B8A6; /* Teal */
-    --team-color-8: #F97316; /* Orange */
-    
-    /* Application Colors */
-    --primary-color: #3B82F6;
-    --secondary-color: #10B981;
-    --background-color: #F3F4F6;
-    --text-primary: #1F2937;
-    --text-secondary: #6B7280;
-    --border-color: #E5E7EB;
-}
-
-/* General Styles */
+/* Custom Styles for a Sleek Dark Theme with Enhanced Visuals */
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    background-color: #1a202c; /* Equivalent to bg-gray-900 */
+    color: #e2e8f0; /* Equivalent to text-gray-100 */
 }
 
-/* Sidebar Navigation */
-aside {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 16rem; /* 256px */
-    height: 100vh;
-    background-color: white;
-    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
-    z-index: 50;
-}
-
-.nav-link {
-    position: relative;
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    font-weight: 500;
-}
-
-.nav-link.active {
-    background-color: #EFF6FF;
-    color: var(--primary-color);
-    border-left: 3px solid var(--primary-color);
-}
-
-.nav-link:hover {
-    background-color: var(--background-color);
-}
-
-/* Page Sections */
+/* Base styles for pages - ensures they are hidden by default */
 .page {
     display: none;
+    /* Removed flex-grow here from original, will be applied to specific children if needed */
 }
 
-.page.active {
+/* Main Sidebar Styling */
+#main-sidebar {
+    background-color: #1f2937; /* A slightly lighter dark for contrast with body */
+    border-right: 1px solid #2d3748; /* Subtle border */
+}
+
+/* Sidebar Navigation Link Styling */
+.nav-link {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem; /* p-3 */
+    border-radius: 0.75rem; /* rounded-xl for more polish */
+    color: #9ca3af; /* text-gray-400 */
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, transform 0.1s ease-out;
+}
+.nav-link:hover {
+    background-color: #374151; /* hover:bg-gray-700 */
+    color: #ffffff; /* hover:text-white */
+    transform: translateX(4px); /* Slight slide effect on hover */
+}
+.nav-link.active {
+    background-image: linear-gradient(to right, #2563eb, #1d4ed8); /* Gradient for active state */
+    color: #ffffff; /* text-white */
+    box-shadow: 0 8px 16px -4px rgba(37, 99, 235, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Stronger shadow */
+    transform: translateY(-2px); /* Lift effect */
+}
+.nav-link svg {
+    margin-right: 0.75rem; /* mr-3 */
+}
+
+/* Form Elements - Consistent Styling */
+.form-label {
     display: block;
+    font-size: 0.875rem; /* text-sm */
+    font-weight: 500; /* font-medium */
+    color: #d1d5db; /* text-gray-300 */
+    margin-bottom: 0.25rem; /* mb-1 */
+}
+.form-input, .form-textarea, .form-select {
+    width: 100%;
+    padding: 0.625rem 1rem; /* px-4 py-2.5 - slightly taller */
+    background-color: #374151; /* bg-gray-700 */
+    border: 1px solid #4b5563; /* border border-gray-600 */
+    border-radius: 0.5rem; /* rounded-lg */
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2); /* Inset shadow for depth */
+    color: #ffffff; /* text-white */
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.form-input:focus, .form-textarea:focus, .form-select:focus {
+    outline: none;
+    border-color: #3b82f6; /* focus:border-blue-500 */
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5); /* focus:ring-3 focus:ring-blue-500 */
+}
+.form-textarea {
+    height: 6rem; /* h-24 */
 }
 
-/* Team Member Color Classes */
-.team-member-1 { background-color: var(--team-color-1); color: white; }
-.team-member-2 { background-color: var(--team-color-2); color: white; }
-.team-member-3 { background-color: var(--team-color-3); color: white; }
-.team-member-4 { background-color: var(--team-color-4); color: white; }
-.team-member-5 { background-color: var(--team-color-5); color: white; }
-.team-member-6 { background-color: var(--team-color-6); color: white; }
-.team-member-7 { background-color: var(--team-color-7); color: white; }
-.team-member-8 { background-color: var(--team-color-8); color: white; }
-
-/* Team Member Badge Styles */
-.team-badge {
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    display: inline-block;
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.875rem 1.75rem; /* px-7 py-3 - slightly larger */
+    border: 1px solid transparent; /* border border-transparent */
+    font-size: 1rem; /* text-base */
+    font-weight: 600; /* font-semibold */
+    border-radius: 0.75rem; /* rounded-xl (more pronounced) */
+    background-image: linear-gradient(to right, #2563eb, #3b82f6); /* Blue gradient */
+    color: #ffffff; /* text-white */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+    transition: all 0.2s ease-in-out;
+    outline: none;
+    position: relative;
+    overflow: hidden; /* For ripple effect or other future animations */
+}
+.btn:hover {
+    background-image: linear-gradient(to right, #1d4ed8, #2563eb); /* Darker gradient on hover */
+    transform: translateY(-2px); /* Lift effect */
+    box-shadow: 0 8px 16px -4px rgba(37, 99, 235, 0.4); /* Stronger shadow */
+}
+.btn:focus {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5); /* focus:ring-3 focus:ring-blue-500 */
+}
+.btn-sm {
+    padding: 0.5rem 1.25rem; /* px-5 py-2 */
+    font-size: 0.875rem; /* text-sm */
+    border-radius: 0.5rem; /* rounded-lg */
 }
 
-/* Modal Styles */
-.modal-overlay {
+/* Custom Scrollbar for better aesthetics in dark theme */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px; /* For vertical scrollbar */
+    height: 8px; /* For horizontal scrollbar */
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #2d3748; /* Darker track */
+    border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #4a5568; /* Darker thumb */
+    border-radius: 10px;
+    border: 2px solid #2d3748; /* Padding around thumb */
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #636e72; /* Lighter thumb on hover */
+}
+
+/* Modal Overlay and Content Styling */
+.modal {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.85); /* Darker overlay */
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background-color: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    max-width: 600px;
-    width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
-    padding: 2rem;
-}
-
-/* Calendar Styles */
-.calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 1px;
-    background-color: var(--border-color);
-    border: 1px solid var(--border-color);
-}
-
-.calendar-cell {
-    background-color: white;
-    padding: 0.5rem;
-    min-height: 80px;
-}
-
-.calendar-header {
-    font-weight: 600;
-    text-align: center;
-    padding: 0.75rem;
-    background-color: var(--background-color);
-}
-
-/* Google Calendar Style */
-#time-column {
-    position: relative;
-    pointer-events: none;
-}
-
-#calendar-scroll-container {
-    position: relative;
-}
-
-/* Synchronized scrolling containers */
-#calendar-days-header {
-    overflow-x: hidden;
-    overflow-y: hidden;
-}
-
-#calendar-scrollbar {
-    overflow-x: auto;
-    overflow-y: hidden;
-}
-
-#calendar-scrollbar::-webkit-scrollbar {
-    height: 12px;
-}
-
-#calendar-scrollbar::-webkit-scrollbar-track {
-    background: #f1f1f1;
-}
-
-#calendar-scrollbar::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 6px;
-}
-
-#calendar-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
-
-.calendar-task {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
-    transition: all 0.3s cubic-bezier(.25,.8,.25,1);
-}
-
-.calendar-task:hover {
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
-    transform: translateY(-1px);
-}
-
-/* Multi-day task styling */
-.task-multi-day-start {
-    border-top-right-radius: 0 !important;
-    border-bottom-right-radius: 0 !important;
-}
-
-.task-multi-day-middle {
-    border-radius: 0 !important;
-}
-
-.task-multi-day-end {
-    border-top-left-radius: 0 !important;
-    border-bottom-left-radius: 0 !important;
-}
-
-/* Task Styles */
-.task-item {
-    border-left: 4px solid var(--primary-color);
+    z-index: 50;
     padding: 1rem;
-    margin-bottom: 0.5rem;
-    background-color: white;
-    border-radius: 0.25rem;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-    transition: box-shadow 0.2s;
+    transition: opacity 0.3s ease-in-out;
 }
-
-.task-item:hover {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.task-priority-high {
-    border-left-color: var(--team-color-4);
-}
-
-.task-priority-medium {
-    border-left-color: var(--team-color-3);
-}
-
-.task-priority-low {
-    border-left-color: var(--team-color-2);
-}
-
-/* Form Styles */
-.form-input {
+.modal-content {
+    background-color: #1f2937; /* bg-gray-800 */
+    color: #ffffff; /* text-white */
+    border-radius: 0.75rem; /* rounded-xl */
+    padding: 2rem; /* p-8 */
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.08); /* Stronger shadow */
+    max-width: 36rem; /* max-w-2xl */
     width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    transition: border-color 0.2s;
+    transform: scale(0.9);
+    opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease-in-out; /* Bounce effect */
+}
+.modal:not(.hidden) .modal-content {
+    transform: scale(1);
+    opacity: 1;
 }
 
-.form-input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+/* Team Member Badges - Dynamic Colors */
+/* Define a palette of 8 distinct colors */
+:root {
+    --team-color-1: #63b3ed; /* Blue */
+    --team-color-2: #81e6d9; /* Teal */
+    --team-color-3: #f6ad55; /* Orange */
+    --team-color-4: #a78bfa; /* Purple */
+    --team-color-5: #fc8181; /* Red */
+    --team-color-6: #48bb78; /* Green */
+    --team-color-7: #ecc94b; /* Yellow */
+    --team-color-8: #ed8936; /* Dark Orange */
+}
+.team-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem; /* px-3 py-1 */
+    border-radius: 9999px; /* rounded-full */
+    font-size: 0.875rem; /* text-sm */
+    font-weight: 600; /* font-semibold */
+    color: #1a202c; /* Dark text for badges */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+.team-member-1 { background-color: var(--team-color-1); }
+.team-member-2 { background-color: var(--team-color-2); }
+.team-member-3 { background-color: var(--team-color-3); }
+.team-member-4 { background-color: var(--team-color-4); }
+.team-member-5 { background-color: var(--team-color-5); }
+.team-member-6 { background-color: var(--team-color-6); }
+.team-member-7 { background-color: var(--team-color-7); }
+.team-member-8 { background-color: var(--team-color-8); }
+
+/* Calendar Specific Styles */
+#calendar-main-grid-container {
+    overflow-x: auto;
+    position: relative;
+}
+#calendar-grid-wrapper {
+    display: flex;
+    position: relative;
+}
+#time-column {
+    width: 60px; /* Fixed width for time column */
+    position: sticky; /* Sticky allows it to scroll with grid vertically */
+    left: 0;
+    top: 0; /* Aligned with the top of its parent flex item */
+    z-index: 20; /* Above grid lines, below tasks */
+    background-color: #1a202c; /* Match sidebar/background */
+    padding-top: 0.75rem; /* Aligned with header height */
+    height: 100%; /* Take full height of its container in flex */
+}
+#calendar-days-header {
+    flex-grow: 1;
+    overflow-x: hidden; /* Hide scrollbar from header */
+    white-space: nowrap; /* Prevent wrapping of day headers */
+    background-color: #1f2937; /* bg-gray-800 */
+}
+#calendar-container {
+    position: relative;
+    flex-grow: 1;
+    /* Height will be set by JS */
+}
+#calendar-scroll-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    overflow-x: scroll;
+}
+#calendar-scrollbar {
+    height: 10px; /* Height of the custom scrollbar */
+    overflow-x: scroll;
+    overflow-y: hidden;
+    width: 100%;
+    margin-top: 1rem;
+    background-color: #2d3748; /* Match scrollbar track */
+    border-radius: 5px;
+}
+#scrollbar-content {
+    height: 1px; /* Minimal height to make it scrollable */
 }
 
-.form-label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--text-primary);
-    margin-bottom: 0.25rem;
-/* Model select spacing */
-#model-select-section {
-    margin-bottom: 0.5rem;
+/* Calendar Task specific styling */
+.calendar-task {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3); /* Task card shadow */
+    transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
 }
+.calendar-task:hover {
+    transform: scale(1.02); /* Slight scale on hover */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
 }
 
-/* Button Styles */
-.btn {
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
-    font-weight: 500;
-    transition: all 0.2s;
-    cursor: pointer;
-    border: none;
-    font-size: 0.875rem;
+/* Mobile sidebar */
+aside {
+    transition: transform 0.3s ease-out;
+    transform: translateX(-100%);
+}
+aside.lg\:translate-x-0 {
+    transform: translateX(0);
+}
+#sidebar-overlay {
+    background-color: rgba(0,0,0,0.5);
+    z-index: 40;
+}
+#sidebar-toggle {
+    z-index: 50; /* Ensure toggle is above overlay */
 }
 
-.btn-primary {
-    background-color: var(--primary-color);
-    color: white;
+/* Onboarding Specific Styles */
+#onboarding-container {
+    min-height: 80vh; /* Ensure it takes up a good portion of the screen */
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%); /* Subtle gradient background */
+    border-radius: 1.5rem; /* More rounded corners for the whole container */
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3); /* Deep shadow */
+    display: flex; /* Ensure flex container for sidebar and content */
+    flex-direction: column; /* Default to column on small screens */
+    width: 100%; /* Take full width */
+    overflow: hidden; /* Hide overflow for smooth transitions */
 }
 
-.btn-primary:hover {
-    background-color: #2563EB;
-}
-
-.btn-secondary {
-    background-color: var(--secondary-color);
-    color: white;
-}
-
-.btn-secondary:hover {
-    background-color: #059669;
-}
-
-/* AI Assistant Styles */
-#project-idea-input {
-    font-family: inherit;
-}
-
-#ai-response {
-    border-left: 4px solid var(--primary-color);
-    padding-left: 1rem;
-}
-
-/* Utility Classes */
-.hidden {
-    display: none !important;
-}
-
-.text-muted {
-    color: var(--text-secondary);
-}
-
-/* Responsive Adjustments */
-@media (max-width: 1024px) {
-    /* Make sidebar toggleable on smaller screens */
-    aside {
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
+@media (min-width: 1024px) { /* lg breakpoint */
+    #onboarding-container {
+        flex-direction: row; /* Row on larger screens */
     }
-    
-    aside.open {
-        transform: translateX(0);
-    }
-    
-    main {
-        margin-left: 0;
+}
 
+#onboarding-visual-sidebar {
+    position: relative; /* For the active indicator line */
+    background-color: #1a202c; /* Even darker sidebar background */
+    border-radius: 1.5rem 1.5rem 0 0; /* Rounded top for mobile */
+    box-shadow: inset 0 -5px 10px rgba(0,0,0,0.2); /* Inner shadow for depth on mobile */
+    flex-direction: row; /* Default to row on small screens */
+    justify-content: space-around; /* Distribute items evenly */
+    align-items: center;
+    padding: 1.5rem;
+    flex-shrink: 0; /* Prevent shrinking */
+    height: auto; /* Allow height to adjust for mobile */
+    width: 100%; /* Full width for mobile */
+}
+
+@media (min-width: 1024px) { /* lg breakpoint */
+    #onboarding-visual-sidebar {
+        flex-direction: column; /* Column on larger screens */
+        justify-content: flex-start; /* Align items to start */
+        padding-top: 3rem; /* Add more padding at the top */
+        padding-bottom: 3rem;
+        border-radius: 1.5rem 0 0 1.5rem; /* Rounded only on left side for desktop */
+        box-shadow: inset -5px 0 10px rgba(0,0,0,0.2); /* Inner shadow for depth on desktop */
+        width: 25%; /* Take 25% width on large screens */
+        height: 100%; /* Take full height of parent on desktop */
     }
 }
 
-@media (max-width: 768px) {
-    .modal-content {
-        width: 95%;
-        padding: 1.5rem; 
+.onboarding-step {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    transition: all 0.3s ease-in-out; /* Smooth transitions */
+    flex-direction: column; /* Default for each step (icon above text) */
+    cursor: pointer; /* Indicate interactivity */
+    padding: 0.5rem; /* Padding for click area */
+}
 
-    }
-    
-    .calendar-cell {
-        min-height: 60px;
-        font-size: 0.875rem;
+@media (min-width: 1024px) { /* lg breakpoint */
+    .onboarding-step {
+        flex-direction: row; /* Icon and text in a row on larger screens */
+        text-align: left; /* Align text left on desktop */
+        align-items: center; /* Vertically align items */
+        padding: 1rem 1.5rem; /* More padding for desktop steps */
     }
 }
 
+.onboarding-step-icon {
+    width: 3.5rem; /* w-14 (slightly larger) */
+    height: 3.5rem; /* h-14 */
+    border-radius: 9999px; /* rounded-full */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem; /* text-2xl */
+    font-weight: 700; /* font-bold */
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Springy transition */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    position: relative; /* For dot animation */
+    z-index: 1; /* Ensure icon is above line */
+    background-color: #4b5563; /* Default gray background */
+    color: #e2e8f0; /* Default text color */
+}
+
+.onboarding-step-text {
+    margin-top: 0.75rem; /* mt-3 */
+    font-size: 0.875rem; /* text-sm */
+    transition: all 0.3s ease-in-out;
+    white-space: nowrap; /* Prevent text wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Add ellipsis for long text */
+}
+
+@media (min-width: 1024px) { /* lg breakpoint */
+    .onboarding-step-text {
+        margin-top: 0; /* Remove top margin when in row layout */
+        margin-left: 1rem; /* Add left margin to separate from icon */
+        font-size: 1rem; /* lg:text-base */
+    }
+}
+
+.onboarding-step.active .onboarding-step-icon {
+    background-image: linear-gradient(45deg, #3b82f6, #2563eb); /* Active gradient */
+    color: #ffffff; /* text-white */
+    transform: scale(1.15); /* More prominent scale */
+    box-shadow: 0 6px 12px rgba(59, 130, 246, 0.6); /* Stronger blue shadow */
+    border: 4px solid #63b3ed; /* Light blue border for active icon */
+}
+
+.onboarding-step.active .onboarding-step-text {
+    color: #ffffff; /* text-white */
+    font-weight: 700; /* font-bold */
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* Vertical line for visual progress in desktop/lg view */
+@media (min-width: 1024px) { /* lg breakpoint */
+    #onboarding-visual-sidebar::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 3px; /* Thicker line */
+        background-color: #4b5563; /* gray-600 */
+        transform: translateX(-50%);
+        z-index: 0;
+    }
+}
+
+/* Onboarding content area */
+#onboarding-content-area {
+    background-color: #1f2937; /* Consistent dark background */
+    border-radius: 0 0 1.5rem 1.5rem; /* Rounded bottom for mobile */
+    box-shadow: inset 0 5px 10px rgba(0,0,0,0.2); /* Inner shadow for depth on mobile */
+    flex-grow: 1; /* Allow content to fill space */
+    padding: 2.5rem; /* General padding for content area */
+    display: flex; /* Ensure flex for internal layout of sections */
+    flex-direction: column;
+    overflow-y: auto; /* Enable vertical scrolling for content if needed */
+}
+
+@media (min-width: 1024px) { /* lg breakpoint */
+    #onboarding-content-area {
+        border-radius: 0 1.5rem 1.5rem 0; /* Rounded only on right side for desktop */
+        box-shadow: inset 5px 0 10px rgba(0,0,0,0.2); /* Inner shadow for depth on desktop */
+        width: 75%; /* Take 75% width on large screens */
+        height: 100%; /* Take full height of parent on desktop */
+    }
+}
+
+/* Onboarding sections for dynamic content */
+.onboarding-section {
+    /* Removed display: none; here to let Tailwind's 'hidden' class control visibility */
+    flex-grow: 1; /* Allow content to fill space */
+    animation: fadeInSlideUp 0.6s ease-out forwards; /* Fade in and slide up animation */
+}
+
+.onboarding-section.flex { /* Use .flex because it's added by JS */
+    display: flex; /* Show active one */
+}
+
+@keyframes fadeInSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Specific styling for chat bubbles within onboarding and dashboard */
+#onboarding-chat-history-1,
+#dashboard-content { /* Applied to general chat as well */
+    display: flex; /* Ensure flexbox for message alignment */
+    flex-direction: column; /* Stack messages vertically */
+    gap: 0.75rem; /* Space between messages */
+}
+
+#onboarding-chat-history-1 > div,
+#dashboard-content > div {
+    animation: slideInFromSide 0.4s ease-out forwards;
+    transform-origin: left; /* For AI messages */
+}
+
+#onboarding-chat-history-1 > div.self-end,
+#dashboard-content > div.self-end {
+    transform-origin: right; /* For user messages */
+}
+
+@keyframes slideInFromSide {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}

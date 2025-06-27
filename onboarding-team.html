@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HackManager - Onboarding: Hackathon Details</title>
+    <title>HackManager - Onboarding: Team Members</title>
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,17 +16,17 @@
 </head>
 <body class="bg-gray-900 min-h-screen flex items-center justify-center text-gray-100 p-4">
 
-    <!-- Onboarding Container for Step 1 -->
+    <!-- Onboarding Container for Step 2 -->
     <div id="onboarding-container" class="w-full max-w-5xl bg-gray-800 rounded-2xl shadow-2xl flex flex-col lg:flex-row h-full min-h-[70vh] max-h-[90vh] overflow-hidden">
         <!-- Onboarding Visual Sidebar -->
         <div id="onboarding-visual-sidebar" class="w-full lg:w-1/4 bg-gray-900 p-6 lg:p-8 flex flex-row lg:flex-col justify-around lg:justify-start items-center lg:items-start space-x-4 lg:space-x-0 lg:space-y-8 relative rounded-t-2xl lg:rounded-l-2xl lg:rounded-tr-none">
-            <div class="onboarding-step active flex-grow" data-step="0">
-                <span class="onboarding-step-icon bg-blue-600 text-white">1</span>
-                <span class="onboarding-step-text text-white font-semibold">Hackathon Details</span>
+            <div class="onboarding-step flex-grow" data-step="0">
+                <span class="onboarding-step-icon bg-gray-600 text-gray-300">1</span>
+                <span class="onboarding-step-text text-gray-400">Hackathon Details</span>
             </div>
-            <div class="onboarding-step flex-grow" data-step="1">
-                <span class="onboarding-step-icon bg-gray-600 text-gray-300">2</span>
-                <span class="onboarding-step-text text-gray-400">Team Members</span>
+            <div class="onboarding-step active flex-grow" data-step="1">
+                <span class="onboarding-step-icon bg-blue-600 text-white">2</span>
+                <span class="onboarding-step-text text-white font-semibold">Team Members</span>
             </div>
             <div class="onboarding-step flex-grow" data-step="2">
                 <span class="onboarding-step-icon bg-gray-600 text-gray-300">3</span>
@@ -34,29 +34,43 @@
             </div>
         </div>
 
-        <!-- Onboarding Content Area for Step 1 -->
+        <!-- Onboarding Content Area for Step 2 -->
         <div id="onboarding-content-area" class="flex-1 bg-gray-800 p-6 lg:p-10 rounded-b-2xl lg:rounded-r-2xl lg:rounded-bl-none overflow-y-auto custom-scrollbar flex flex-col justify-center animate-fade-in">
             <h2 class="text-3xl font-bold text-blue-300 mb-6 text-center">Welcome to HackManager! ✨</h2>
             <p class="text-gray-300 mb-8 text-center">Your AI-powered co-pilot for hackathon planning. Let's get your project set up!</p>
             
-            <!-- Step 0: Hackathon Details Form -->
-            <div id="onboarding-hackathon-details-step" class="onboarding-section">
-                <h3 class="text-xl font-semibold text-white mb-4">Tell us about your Hackathon</h3>
-                <form id="onboarding-hackathon-form" class="space-y-4">
+            <!-- Step 1: Team Details -->
+            <div id="onboarding-team-details-step" class="onboarding-section">
+                <h3 class="text-xl font-semibold text-white mb-4">Tell us about your Team 🧑‍💻</h3>
+                <p class="text-gray-400 mb-6">Add your team members. You can always add more later in the Team section.</p>
+                
+                <div id="onboarding-team-list" class="space-y-3 mb-6 p-4 rounded-lg bg-gray-700 max-h-48 overflow-y-auto custom-scrollbar border border-gray-600">
+                    <p class="text-center text-gray-400 text-sm py-4">No members added yet.</p>
+                </div>
+
+                <form id="onboarding-add-member-form" class="space-y-4">
                     <div>
-                        <label for="onboarding-hackathon-name" class="form-label">Hackathon Name</label>
-                        <input type="text" id="onboarding-hackathon-name" class="form-input" placeholder="e.g., Hack the North" required>
+                        <label for="onboarding-member-name" class="form-label">Name</label>
+                        <input type="text" id="onboarding-member-name" class="form-input" placeholder="e.g., Alice" required>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="onboarding-sleep-start" class="form-label">Sleep Start (24h format)</label>
+                            <input type="time" id="onboarding-sleep-start" class="form-input" value="23:00" required>
+                        </div>
+                        <div>
+                            <label for="onboarding-sleep-end" class="form-label">Sleep End (24h format)</label>
+                            <input type="time" id="onboarding-sleep-end" class="form-input" value="07:00" required>
+                        </div>
                     </div>
                     <div>
-                        <label for="onboarding-start-date" class="form-label">Start Date & Time</label>
-                        <input type="datetime-local" id="onboarding-start-date" class="form-input" required>
+                        <label for="onboarding-skills" class="form-label">Skills (comma-separated, e.g., Frontend, Backend, UI/UX)</label>
+                        <input type="text" id="onboarding-skills" class="form-input" placeholder="e.g., React, Node.js, Design">
                     </div>
-                    <div>
-                        <label for="onboarding-duration" class="form-label">Duration (hours)</label>
-                        <input type="number" id="onboarding-duration" class="form-input" placeholder="48" min="1" required>
-                    </div>
-                    <div class="flex justify-end pt-4">
-                        <button type="submit" class="btn">Next: Add Team Members</button>
+                    <div class="flex justify-between pt-4">
+                        <button type="button" onclick="window.location.href='index.html'" class="btn bg-gray-600 hover:bg-gray-700">Back</button>
+                        <button type="submit" class="btn">Add Member</button>
+                        <button type="button" id="next-to-ai-onboarding" class="btn">Next: Project Idea</button>
                     </div>
                 </form>
             </div>
