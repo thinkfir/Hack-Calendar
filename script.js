@@ -14,8 +14,7 @@ const app = {
     },
     projectIdea: '',
     selectedMemberId: null, // For tracking which team member is selected in the team page
-    chatHistory: [], // To store chat messages for the AI assistant
-    onboardingStep: 0 // 0: ask hackathon name, 1: ask start date/duration, 2: ask team members, 3: ask project idea, -1: onboarding complete
+    chatHistory: [] // To store chat messages for the AI assistant
 };
 
 // Element references (cached for performance)
@@ -26,15 +25,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Cache common DOM elements
     elements.pages = document.querySelectorAll('.page');
     elements.navLinks = document.querySelectorAll('.nav-link');
-    // Onboarding modal elements are removed/repurposed as onboarding is now conversational
+    elements.onboardingModal = document.getElementById('onboarding-modal');
+    elements.onboardingContent = document.getElementById('onboarding-content');
     elements.taskModal = document.getElementById('task-modal');
-    elements.projectIdeaInput = document.getElementById('project-idea-input'); // Still used in settings
-    elements.aiResponse = document.getElementById('ai-response'); // Now used for dashboard/tasks display
+    elements.projectIdeaInput = document.getElementById('project-idea-input');
+    elements.aiResponse = document.getElementById('ai-response');
     elements.chatInput = document.getElementById('chat-input');
     elements.chatForm = document.getElementById('chat-form');
     elements.chatHistory = document.getElementById('chat-history');
-    elements.tasksList = document.getElementById('tasks-list'); // Re-purposed to be part of the dashboard content if needed
-
+    elements.tasksList = document.getElementById('tasks-list'); // For the AI Assistant page's generated tasks display
+    
     // Settings page elements
     elements.hackathonName = document.getElementById('hackathon-name');
     elements.startDate = document.getElementById('start-date');
@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Calendar page elements
     elements.calendarContainer = document.getElementById('calendar-container');
-
+    
     // Custom message modal elements
     elements.customMessageModal = document.getElementById('custom-message-modal');
     elements.customMessageTitle = document.getElementById('custom-message-title');
@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadFromLocalStorage(); // Load saved data
     initializeUI(); // Set up initial UI state
     setupEventListeners(); // Attach all event listeners
-    startInitialAppFlow(); // Start either onboarding or dashboard
+    showOnboarding(); // Show onboarding if first time user
     updateTeamStats(); // Initial update of team stats
 });
 
@@ -85,10 +85,7 @@ function showPage(pageId) {
     elements.navLinks.forEach(link => {
         link.classList.remove('active');
     });
-    const activeLink = document.querySelector(`.nav-link[data-page="${pageId}"]`);
-    if (activeLink) {
-        activeLink.classList.add('active');
-    }
+    document.querySelector(`.nav-link[data-page="${pageId}"]`).classList.add('active');
 
     // Perform page-specific rendering
     if (pageId === 'calendar') {
@@ -97,9 +94,8 @@ function showPage(pageId) {
     } else if (pageId === 'team') {
         renderTeamMembers();
     } else if (pageId === 'ai-assistant') {
-        // This is now the dashboard
-        displayChatHistory(); // Always display chat history when on AI Assistant page
-        renderDashboardContent();
+        displayChatHistory();
+        // displayGeneratedTasks(app.allTasks); // Re-render tasks if any
     }
     saveToLocalStorage(); // Save current page
 }
@@ -232,17 +228,6 @@ function setupEventListeners() {
             localStorage.setItem('other_endpoint', e.target.value);
         });
     }
-
-    // Event listener for the Re-evaluate/Regenerate Schedule button (on the dashboard)
-    document.addEventListener('click', (e) => {
-        if (e.target && e.target.id === 're-evaluate-schedule-btn') {
-            reEvaluateSchedule();
-        }
-        if (e.target && e.target.id === 'add-member-dashboard-btn') {
-            showPage('team'); // Navigate to team page to add member
-            renderMemberDetailsForm(null);
-        }
-    });
 }
 
 /**
@@ -383,171 +368,197 @@ function hideMessage() {
 }
 
 
-// ========== App Flow & Onboarding Functions ==========
+// ========== Onboarding Functions ==========
 
 /**
- * Determines whether to start onboarding or go to the dashboard.
+ * Shows the onboarding modal if the user hasn't seen it before.
  */
-function startInitialAppFlow() {
+function showOnboarding() {
     const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
-    // Check if critical settings are missing to trigger onboarding
-    if (!hasSeenOnboarding || !app.hackathonSettings.name || app.teamMembers.length === 0 || !app.projectIdea) {
-        app.onboardingStep = 0; // Start at the first step of onboarding
-        showPage('ai-assistant'); // Direct to AI Assistant for conversational onboarding
-        displayAIMessage("Welcome to HackManager! Let's get your hackathon project set up. What is the name of your hackathon?");
-    } else {
-        app.onboardingStep = -1; // Onboarding complete
-        showPage('ai-assistant'); // Go to dashboard
-        displayAIMessage("Welcome back to your HackManager dashboard! What can I help you with today?");
-        renderDashboardContent();
+    if (!hasSeenOnboarding || true) { // Always show for now during development
+        elements.onboardingModal.classList.remove('hidden');
+        renderOnboardingStep(1);
     }
 }
 
 /**
- * Handles the conversational onboarding flow through the AI Assistant.
- * @param {string} userMessage - The user's input.
+ * Renders a specific step of the onboarding process.
+ * @param {number} step - The step number to render (1, 2, or 3).
  */
-async function processOnboardingStep(userMessage) {
-    displayAIMessage("Processing your response...", true); // Show typing indicator
+function renderOnboardingStep(step) {
+    let content = '';
+    let buttons = '';
 
-    switch (app.onboardingStep) {
-        case 0: // Ask for hackathon name
-            app.hackathonSettings.name = userMessage;
-            displayAIMessage(`Great! "${app.hackathonSettings.name}" it is. Now, what is the start date and approximate duration (in hours) of the hackathon? (e.g., "2025-07-01 09:00, 48 hours")`);
-            app.onboardingStep = 1;
-            break;
-
-        case 1: // Ask for start date & duration
-            const dateDurationMatch = userMessage.match(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})?[,\s]*(\d+)\s*hours?/i);
-            if (dateDurationMatch) {
-                const datePart = dateDurationMatch[1];
-                const timePart = dateDurationMatch[2] || '09:00'; // Default to 9 AM if no time provided
-                app.hackathonSettings.startDate = new Date(`${datePart}T${timePart}`);
-                app.hackathonSettings.duration = parseInt(dateDurationMatch[3]);
-                
-                // Validate dates
-                if (isNaN(app.hackathonSettings.startDate.getTime())) {
-                    displayAIMessage("I couldn't understand that date format. Please try again with 'YYYY-MM-DD HH:MM, e.g., '2025-07-01 09:00, 48 hours'");
-                    return;
-                }
-                if (app.hackathonSettings.duration <= 0) {
-                     displayAIMessage("Please provide a valid duration in hours (e.g., '2025-07-01 09:00, 48 hours')");
-                     return;
-                }
-
-                displayAIMessage(`Got it: starting ${formatFullDate(app.hackathonSettings.startDate)} for ${app.hackathonSettings.duration} hours. Next, tell me the names of your team members, separated by commas. (e.g., "Alice, Bob, Carol")`);
-                app.onboardingStep = 2;
-            } else {
-                displayAIMessage("I couldn't understand that format. Please provide the start date (YYYY-MM-DD), optional time (HH:MM), and duration in hours. (e.g., '2025-07-01 09:00, 48 hours')");
-            }
-            break;
-
-        case 2: // Ask for team members
-            const names = userMessage.split(',').map(name => name.trim()).filter(name => name);
-            if (names.length > 0) {
-                names.forEach(name => {
-                    if (!app.teamMembers.some(member => member.name.toLowerCase() === name.toLowerCase())) {
-                        addTeamMember({ name: name, sleepStart: '23:00', sleepEnd: '07:00', skills: [] }); // Add with default sleep/skills
-                    }
-                });
-                displayAIMessage(`Okay, I've added ${names.join(', ')} to your team. You can add more details like skills and exact sleep schedules later in the 'Team' section. Finally, what's your main project idea for this hackathon?`);
-                app.onboardingStep = 3;
-            } else {
-                displayAIMessage("Please provide at least one team member's name.");
-            }
-            break;
-
-        case 3: // Ask for project idea
-            app.projectIdea = userMessage;
-            saveToLocalStorage(); // Save current state
-            displayAIMessage(`Excellent! Your project idea: "${app.projectIdea}". I'm now generating initial tasks and a schedule based on this. This might take a moment.`);
-            app.onboardingStep = -1; // Onboarding complete
-            localStorage.setItem('hasSeenOnboarding', 'true'); // Mark onboarding as seen
-            renderDashboardContent(); // Render dashboard content after onboarding is done
-
-            // Trigger AI task generation
-            const selectedProvider = localStorage.getItem('ai_provider') || 'groq';
-            try {
-                // Pass the updateProgress callback correctly
-                const generatedTasks = await generateTasksWithAI(app.projectIdea, selectedProvider, (progress, msg) => {
-                    const loadingDiv = elements.chatHistory.querySelector('.animate-spin');
-                    if (loadingDiv) {
-                        loadingDiv.parentNode.querySelector('span').textContent = `${msg} (${progress}%)`;
-                    } else {
-                         displayAIMessage(`${msg} (${progress}%)`, true); // If loading div disappeared, re-add
-                    }
-                });
-                app.allTasks = generatedTasks;
-                saveToLocalStorage();
-                displayAIMessage(`I've generated ${generatedTasks.length} tasks for "${app.projectIdea}". You can view and manage them on the Calendar page or below on this dashboard. What else can I help with?`);
-                renderDashboardContent(); // Update dashboard with tasks
-            } catch (error) {
-                console.error("Error during initial task generation:", error);
-                displayAIMessage(`Sorry, I encountered an error during task generation: ${error.message}. Please check your API key in Settings or try again with a simpler project idea.`);
-            }
-            break;
-    }
-    // Update settings form with newly collected data
-    initializeUI();
-    saveToLocalStorage();
-}
-
-/**
- * Displays an AI message in the chat history, optionally with a loading indicator.
- * @param {string} message - The message content.
- * @param {boolean} isLoading - True if it's a loading message (shows spinner instead of content).
- */
-function displayAIMessage(message, isLoading = false) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `p-3 rounded-lg mb-2 bg-gray-700 self-start text-left mr-auto text-white`; // Changed to gray-700 for dark theme
-    messageDiv.style.maxWidth = '80%';
-    
-    if (isLoading) {
-        messageDiv.innerHTML = `
-            <div class="flex items-center space-x-2 text-gray-400">
-                <div class="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
-                <span>${message}</span>
+    if (step === 1) {
+        content = `
+            <h3 class="text-2xl font-bold mb-4 text-blue-700">Welcome to HackManager! 👋</h3>
+            <p class="text-gray-700 mb-6">
+                Your AI-powered co-pilot for hackathon planning. Let's get your project set up!
+            </p>
+            <form id="onboarding-settings-form" class="space-y-4 text-left">
+                <div>
+                    <label for="onboarding-hackathon-name" class="form-label">Hackathon Name</label>
+                    <input type="text" id="onboarding-hackathon-name" class="form-input" placeholder="e.g. My Awesome Hackathon" required value="${app.hackathonSettings.name || ''}">
+                </div>
+                <div>
+                    <label for="onboarding-start-date" class="form-label">Start Date & Time</label>
+                    <input type="datetime-local" id="onboarding-start-date" class="form-input" required value="${app.hackathonSettings.startDate ? formatDateTimeLocal(app.hackathonSettings.startDate) : ''}">
+                </div>
+                <div>
+                    <label for="onboarding-duration" class="form-label">Duration (hours)</label>
+                    <select id="onboarding-duration" class="form-input" required>
+                        <option value="24">24 hours</option>
+                        <option value="36">36 hours</option>
+                        <option value="48" ${app.hackathonSettings.duration === 48 ? 'selected' : ''}>48 hours</option>
+                        <option value="72">72 hours</option>
+                        <option value="120">120 hours (5 days)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-full mt-4">Next: Add Team Members</button>
+            </form>
+        `;
+    } else if (step === 2) {
+        content = `
+            <h3 class="text-2xl font-bold mb-4 text-blue-700">Tell us about your Team 🧑‍💻</h3>
+            <p class="text-gray-700 mb-6">
+                Add your team members. You can always add more later in the Team section.
+            </p>
+            <div id="onboarding-team-list" class="space-y-3 max-h-48 overflow-y-auto custom-scrollbar bg-gray-100 p-3 rounded-md mb-4">
+                <!-- Team members will be added here dynamically -->
+                ${app.teamMembers.length > 0 ? app.teamMembers.map((member, index) => `
+                    <div class="flex items-center justify-between p-2 bg-white rounded-md shadow-sm">
+                        <span class="team-badge team-member-${member.colorIndex + 1}">${member.name}</span>
+                        <div class="text-sm text-gray-600">Sleep: ${member.sleepStart}-${member.sleepEnd}</div>
+                        <button type="button" onclick="removeOnboardingTeamMember('${member.id}')" class="text-red-500 hover:text-red-700">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `).join('') : '<p class="text-center text-gray-500 py-4">No members added yet.</p>'}
+            </div>
+            <form id="onboarding-add-member-form" class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                <div class="md:col-span-1">
+                    <label for="onboarding-member-name" class="form-label">Name</label>
+                    <input type="text" id="onboarding-member-name" class="form-input" placeholder="Name" required>
+                </div>
+                <div class="md:col-span-1">
+                    <label for="onboarding-sleep-start" class="form-label">Sleep Start (24h)</label>
+                    <input type="time" id="onboarding-sleep-start" class="form-input" value="23:00" required>
+                </div>
+                <div class="md:col-span-1">
+                    <label for="onboarding-sleep-end" class="form-label">Sleep End (24h)</label>
+                    <input type="time" id="onboarding-sleep-end" class="form-input" value="07:00" required>
+                </div>
+                <div class="md:col-span-3">
+                    <label for="onboarding-skills" class="form-label">Skills (comma-separated)</label>
+                    <input type="text" id="onboarding-skills" class="form-input" placeholder="e.g. Frontend, Backend, UI/UX">
+                </div>
+                <button type="submit" class="btn btn-secondary w-full md:col-span-3">Add Member</button>
+            </form>
+            <div class="flex justify-between mt-6">
+                <button onclick="renderOnboardingStep(1)" class="btn btn-secondary px-6 py-2">Back</button>
+                <button onclick="renderOnboardingStep(3)" class="btn btn-primary px-6 py-2">Next: Project Idea</button>
             </div>
         `;
-    } else {
-        messageDiv.innerHTML = `<strong>AI:</strong> ${message}`;
+        // Attach form listener dynamically after content is set
+        setTimeout(() => {
+            document.getElementById('onboarding-add-member-form').addEventListener('submit', handleOnboardingAddMember);
+        }, 0);
+
+    } else if (step === 3) {
+        content = `
+            <h3 class="text-2xl font-bold mb-4 text-blue-700">Your Project Idea 💡</h3>
+            <p class="text-gray-700 mb-6">
+                Briefly describe your hackathon project. The AI will use this to generate tasks.
+            </p>
+            <textarea id="onboarding-project-idea" class="form-input h-32" placeholder="e.g., A web app for real-time collaborative document editing with AI summarization" required>${app.projectIdea || ''}</textarea>
+            <div class="flex justify-between mt-6">
+                <button onclick="renderOnboardingStep(2)" class="btn btn-secondary px-6 py-2">Back</button>
+                <button onclick="completeOnboarding()" class="btn btn-primary px-6 py-2">Finish Setup</button>
+            </div>
+        `;
     }
-    
-    // Add to chat history only if not a temporary loading message
-    if (!isLoading) {
-        app.chatHistory.push({ role: 'ai', content: message });
+
+    elements.onboardingContent.innerHTML = content;
+
+    // Add event listener for settings form if step 1
+    if (step === 1) {
+        document.getElementById('onboarding-settings-form').addEventListener('submit', handleOnboardingSettingsSubmit);
     }
-    
-    elements.chatHistory.appendChild(messageDiv);
-    // Remove old loading message if present
-    const existingLoading = elements.chatHistory.querySelector('.animate-spin');
-    if (existingLoading && !isLoading) { // Only remove if new message is not a loading message itself
-        existingLoading.closest('div').remove();
-    }
-    elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight;
 }
 
 /**
- * Displays the full chat history in the chat window.
+ * Handles the submission of the onboarding settings form (step 1).
+ * Saves hackathon settings and proceeds to step 2.
+ * @param {Event} event - The form submission event.
  */
-function displayChatHistory() {
-    if (!elements.chatHistory) return;
-    elements.chatHistory.innerHTML = ''; // Clear current display
+function handleOnboardingSettingsSubmit(event) {
+    event.preventDefault();
+    app.hackathonSettings.name = document.getElementById('onboarding-hackathon-name').value;
+    app.hackathonSettings.startDate = new Date(document.getElementById('onboarding-start-date').value);
+    app.hackathonSettings.duration = parseInt(document.getElementById('onboarding-duration').value);
+    saveToLocalStorage();
+    renderOnboardingStep(2);
+}
 
-    app.chatHistory.forEach(chat => {
-        const messageDiv = document.createElement('div');
-        if (chat.role === 'user') {
-            messageDiv.className = `p-3 rounded-lg mb-2 bg-blue-600 self-end text-right ml-auto text-white`; // Blue for user messages
-            messageDiv.style.maxWidth = '80%';
-            messageDiv.innerHTML = `<strong>You:</strong> ${chat.content}`;
-        } else {
-            messageDiv.className = `p-3 rounded-lg mb-2 bg-gray-700 self-start text-left mr-auto text-white`; // Darker for AI messages
-            messageDiv.style.maxWidth = '80%';
-            messageDiv.innerHTML = `<strong>AI:</strong> ${chat.content}`;
-        }
-        elements.chatHistory.appendChild(messageDiv);
-    });
-    elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight; // Scroll to bottom
+/**
+ * Handles the submission of the onboarding add member form (step 2).
+ * Adds a new team member and re-renders the list.
+ * @param {Event} event - The form submission event.
+ */
+function handleOnboardingAddMember(event) {
+    event.preventDefault();
+    const nameInput = document.getElementById('onboarding-member-name');
+    const sleepStartInput = document.getElementById('onboarding-sleep-start');
+    const sleepEndInput = document.getElementById('onboarding-sleep-end');
+    const skillsInput = document.getElementById('onboarding-skills');
+
+    const newMember = {
+        id: generateId(),
+        name: nameInput.value,
+        sleepStart: sleepStartInput.value,
+        sleepEnd: sleepEndInput.value,
+        skills: skillsInput.value.split(',').map(s => s.trim()).filter(s => s) || [],
+        colorIndex: app.teamMembers.length % 8 // Assign a color
+    };
+    app.teamMembers.push(newMember);
+    saveToLocalStorage();
+    renderOnboardingStep(2); // Re-render to show new member
+    
+    // Clear form fields
+    nameInput.value = '';
+    skillsInput.value = '';
+    nameInput.focus();
+}
+
+/**
+ * Removes a team member during the onboarding process.
+ * @param {string} memberId - The ID of the member to remove.
+ */
+function removeOnboardingTeamMember(memberId) {
+    app.teamMembers = app.teamMembers.filter(member => member.id !== memberId);
+    saveToLocalStorage();
+    renderOnboardingStep(2); // Re-render to show updated list
+}
+
+/**
+ * Completes the onboarding process, hides the modal, and redirects to AI Assistant.
+ * Triggers initial AI task generation if a project idea was provided.
+ */
+function completeOnboarding() {
+    app.projectIdea = document.getElementById('onboarding-project-idea').value;
+    saveToLocalStorage();
+    localStorage.setItem('hasSeenOnboarding', 'true');
+    elements.onboardingModal.classList.add('hidden');
+    showPage('ai-assistant'); // Redirect to AI Assistant page after onboarding
+    displayChatHistory(); // Ensure chat history is displayed
+
+    // Trigger initial AI task generation after onboarding if a project idea was provided
+    if (app.projectIdea) {
+        showMessage('Generating Tasks...', 'Please wait while AI generates your initial tasks. This might take a moment.', 'alert', () => {
+            const selectedProvider = localStorage.getItem('ai_provider') || 'groq';
+            generateTasksWithAI(app.projectIdea, selectedProvider); // Call the AI for task generation
+        });
+    }
 }
 
 
@@ -572,7 +583,6 @@ function handleSettingsSubmit(event) {
         initializeCalendar(); // Re-initialize calendar if settings changed
         renderCalendar();
     }
-    renderDashboardContent(); // Refresh dashboard content
 }
 
 
@@ -596,7 +606,6 @@ function addTeamMember(memberData) {
     saveToLocalStorage();
     renderTeamMembers();
     updateTeamStats();
-    renderDashboardContent(); // Update dashboard with new member info
     return newMember;
 }
 
@@ -616,7 +625,6 @@ function updateTeamMember(memberId, updates) {
         saveToLocalStorage();
         renderTeamMembers();
         updateTeamStats();
-        renderDashboardContent(); // Update dashboard
         // Re-render tasks and calendar if assigned member info changes
         if (app.currentPage === 'calendar') {
             renderTasks();
@@ -645,7 +653,6 @@ function deleteTeamMember(memberId) {
         app.selectedMemberId = null; // Clear selection
         renderTeamMembers();
         updateTeamStats();
-        renderDashboardContent(); // Update dashboard
         if (app.currentPage === 'calendar') {
             renderTasks();
             renderCalendar();
@@ -674,10 +681,10 @@ function renderTeamMembers() {
 
     app.teamMembers.forEach(member => {
         const memberDiv = document.createElement('div');
-        memberDiv.className = `flex items-center justify-between p-3 rounded-lg cursor-pointer hover:bg-gray-700 transition-colors ${app.selectedMemberId === member.id ? 'bg-blue-800 border border-blue-400' : 'bg-gray-800 shadow-sm'} text-white`; // Dark theme adjustments
+        memberDiv.className = `flex items-center justify-between p-3 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors ${app.selectedMemberId === member.id ? 'bg-blue-100 border border-blue-400' : 'bg-white shadow-sm'}`;
         memberDiv.innerHTML = `
             <span class="team-badge team-member-${member.colorIndex + 1} text-sm">${member.name}</span>
-            <div class="text-xs text-gray-400">Sleep: ${member.sleepStart}-${member.sleepEnd}</div>
+            <div class="text-xs text-gray-500">Sleep: ${member.sleepStart}-${member.sleepEnd}</div>
         `;
         memberDiv.onclick = () => selectMember(member.id);
         elements.teamMembersSimpleList.appendChild(memberDiv);
@@ -712,29 +719,29 @@ function renderMemberDetailsForm(memberId) {
     if (!elements.memberDetails) return;
 
     elements.memberDetails.innerHTML = `
-        <h4 class="font-semibold text-lg mb-4 text-white">${isEditing ? 'Edit Team Member' : 'Add New Team Member'}</h4>
+        <h4 class="font-semibold text-lg mb-4">${isEditing ? 'Edit Team Member' : 'Add New Team Member'}</h4>
         <form id="member-form" class="space-y-4">
             <div>
-                <label for="member-name" class="form-label text-gray-300">Name</label>
-                <input type="text" id="member-name" class="form-input bg-gray-700 text-white border-gray-600 focus:border-blue-500" value="${member ? member.name : ''}" required>
+                <label for="member-name" class="form-label">Name</label>
+                <input type="text" id="member-name" class="form-input" value="${member ? member.name : ''}" required>
             </div>
             <div>
-                <label for="member-sleep-start" class="form-label text-gray-300">Sleep Start (24h format)</label>
-                <input type="time" id="member-sleep-start" class="form-input bg-gray-700 text-white border-gray-600 focus:border-blue-500" value="${member ? member.sleepStart : '23:00'}" required>
+                <label for="member-sleep-start" class="form-label">Sleep Start (24h format)</label>
+                <input type="time" id="member-sleep-start" class="form-input" value="${member ? member.sleepStart : '23:00'}" required>
             </div>
             <div>
-                <label for="member-sleep-end" class="form-label text-gray-300">Sleep End (24h format)</label>
-                <input type="time" id="member-sleep-end" class="form-input bg-gray-700 text-white border-gray-600 focus:border-blue-500" value="${member ? member.sleepEnd : '07:00'}" required>
+                <label for="member-sleep-end" class="form-label">Sleep End (24h format)</label>
+                <input type="time" id="member-sleep-end" class="form-input" value="${member ? member.sleepEnd : '07:00'}" required>
             </div>
             <div>
-                <label for="member-skills" class="form-label text-gray-300">Skills (comma-separated, e.g., Frontend, Backend, UI/UX)</label>
-                <input type="text" id="member-skills" class="form-input bg-gray-700 text-white border-gray-600 focus:border-blue-500" value="${member && member.skills ? member.skills.join(', ') : ''}">
+                <label for="member-skills" class="form-label">Skills (comma-separated, e.g., Frontend, Backend, UI/UX)</label>
+                <input type="text" id="member-skills" class="form-input" value="${member && member.skills ? member.skills.join(', ') : ''}">
             </div>
             <div class="flex justify-end gap-3 pt-4">
                 ${isEditing ? `
-                    <button type="button" onclick="deleteTeamMember('${memberId}')" class="btn bg-red-600 hover:bg-red-700 text-white">Delete Member</button>
+                    <button type="button" onclick="deleteTeamMember('${memberId}')" class="btn bg-red-500 hover:bg-red-600">Delete Member</button>
                 ` : ''}
-                <button type="submit" class="btn bg-blue-600 hover:bg-blue-700 text-white">${isEditing ? 'Update Member' : 'Add Member'}</button>
+                <button type="submit" class="btn btn-primary">${isEditing ? 'Update Member' : 'Add Member'}</button>
             </div>
         </form>
     `;
@@ -800,12 +807,12 @@ function updateTeamStats() {
     let workloadHtml = '';
     if (totalMembers > 0) {
         workloadHtml = `
-            <h5 class="font-semibold text-gray-300 mt-4 mb-2">Individual Workload:</h5>
+            <h5 class="font-semibold text-gray-700 mt-4 mb-2">Individual Workload:</h5>
             <ul class="space-y-2">
                 ${Object.values(currentWorkload).map(work => `
-                    <li class="flex justify-between items-center bg-gray-700 p-2 rounded-md shadow-sm text-white">
+                    <li class="flex justify-between items-center bg-white p-2 rounded-md shadow-sm">
                         <span>${work.name}</span>
-                        <span class="text-sm text-gray-400">${work.tasksAssigned} tasks, ${work.hoursAssigned} hours</span>
+                        <span class="text-sm text-gray-600">${work.tasksAssigned} tasks, ${work.hoursAssigned} hours</span>
                     </li>
                 `).join('')}
             </ul>
@@ -817,125 +824,27 @@ function updateTeamStats() {
 
     elements.teamStats.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-            <div class="bg-blue-900 p-4 rounded-lg">
-                <p class="text-sm text-blue-300">Total Team Members</p>
-                <p class="text-2xl font-bold text-white">${totalMembers}</p>
+            <div class="bg-blue-50 p-4 rounded-lg">
+                <p class="text-sm text-blue-700">Total Team Members</p>
+                <p class="text-2xl font-bold text-blue-900">${totalMembers}</p>
             </div>
-            <div class="bg-green-900 p-4 rounded-lg">
-                <p class="text-sm text-green-300">Total Tasks</p>
-                <p class="text-2xl font-bold text-white">${totalTasks}</p>
+            <div class="bg-green-50 p-4 rounded-lg">
+                <p class="text-sm text-green-700">Total Tasks</p>
+                <p class="text-2xl font-bold text-green-900">${totalTasks}</p>
             </div>
-            <div class="bg-yellow-900 p-4 rounded-lg">
-                <p class="text-sm text-yellow-300">Tasks Completed</p>
-                <p class="text-2xl font-bold text-white">${completedTasks} / ${totalTasks}</p>
+            <div class="bg-yellow-50 p-4 rounded-lg">
+                <p class="text-sm text-yellow-700">Tasks Completed</p>
+                <p class="text-2xl font-bold text-yellow-900">${completedTasks} / ${totalTasks}</p>
             </div>
         </div>
         ${workloadHtml}
     `;
 }
 
-// ========== AI Assistant / Dashboard Functions ==========
-
-/**
- * Renders the content for the AI Assistant page, which now serves as the dashboard.
- */
-function renderDashboardContent() {
-    const dashboardContentDiv = elements.aiResponse; // Re-using aiResponse div for dashboard content
-    if (!dashboardContentDiv) return;
-
-    let dashboardHtml = `
-        <div class="space-y-8 p-4">
-            <h2 class="text-2xl font-bold text-blue-300">Hackathon Dashboard</h2>
-
-            <!-- Hackathon Overview Card -->
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg text-white">
-                <h3 class="text-xl font-semibold mb-3 text-orange-300">Hackathon Overview</h3>
-                <p><strong>Name:</strong> ${app.hackathonSettings.name || 'Not set'}</p>
-                <p><strong>Starts:</strong> ${app.hackathonSettings.startDate ? formatFullDate(app.hackathonSettings.startDate) : 'Not set'}</p>
-                <p><strong>Duration:</strong> ${app.hackathonSettings.duration ? app.hackathonSettings.duration + ' hours' : 'Not set'}</p>
-                <p><strong>Project Idea:</strong> ${app.projectIdea || 'Not set'}</p>
-                <div class="flex justify-end mt-4">
-                    <button onclick="showPage('settings')" class="btn bg-blue-600 hover:bg-blue-700 text-white text-sm">Edit Settings</button>
-                </div>
-            </div>
-
-            <!-- Team Overview Card -->
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg text-white">
-                <h3 class="text-xl font-semibold mb-3 text-orange-300">Team Members (${app.teamMembers.length})</h3>
-                <div class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                    ${app.teamMembers.length > 0 ? app.teamMembers.map(member => `
-                        <div class="flex items-center justify-between p-2 bg-gray-700 rounded-md">
-                            <span class="team-badge team-member-${member.colorIndex + 1} text-xs">${member.name}</span>
-                            <span class="text-xs text-gray-400">${member.skills.join(', ') || 'No skills'}</span>
-                        </div>
-                    `).join('') : '<p class="text-gray-500">No team members added yet.</p>'}
-                </div>
-                <div class="flex justify-end mt-4">
-                    <button id="add-member-dashboard-btn" class="btn bg-blue-600 hover:bg-blue-700 text-white text-sm mr-2">Add Member</button>
-                    <button onclick="showPage('team')" class="btn bg-blue-600 hover:bg-blue-700 text-white text-sm">Manage Team</button>
-                </div>
-            </div>
-
-            <!-- Task & Schedule Overview -->
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg text-white">
-                <h3 class="text-xl font-semibold mb-3 text-orange-300">Tasks & Schedule</h3>
-                <p>Total tasks: ${app.allTasks.length}</p>
-                <p>Completed tasks: ${app.allTasks.filter(t => t.status === 'Completed').length}</p>
-                <div class="flex justify-end mt-4">
-                    <button id="re-evaluate-schedule-btn" class="btn bg-blue-600 hover:bg-blue-700 text-white text-sm mr-2">Re-evaluate Schedule with AI</button>
-                    <button onclick="showPage('calendar')" class="btn bg-blue-600 hover:bg-blue-700 text-white text-sm">View Calendar</button>
-                </div>
-            </div>
-
-            <!-- Mini Calendar View (simplified) -->
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg text-white">
-                <h3 class="text-xl font-semibold mb-3 text-orange-300">Upcoming Tasks</h3>
-                <div class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                    ${app.allTasks.length > 0 ? app.allTasks
-                        .filter(task => task.status !== 'Completed')
-                        .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-                        .slice(0, 5) // Show top 5 upcoming tasks
-                        .map(task => {
-                            const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
-                            const assignedMembers = assignees.map(id => app.teamMembers.find(m => m.id === id)).filter(m => m);
-                            return `
-                                <div class="p-2 bg-gray-700 rounded-md border-l-4 border-${getTaskStatusColorClass(task.status)}-500">
-                                    <div class="font-medium text-white">${task.title}</div>
-                                    <div class="text-xs text-gray-400">
-                                        ${formatDate(task.startDate)} (${task.estimatedHours}h)
-                                        ${assignedMembers.length > 0 ? ` | Assigned: ${assignedMembers.map(m => m.name).join(', ')}` : ''}
-                                    </div>
-                                </div>
-                            `;
-                        }).join('') : '<p class="text-gray-500">No upcoming tasks. Generate some with AI!</p>'}
-                </div>
-            </div>
-        </div>
-    `;
-
-    dashboardContentDiv.innerHTML = dashboardHtml;
-    dashboardContentDiv.classList.remove('hidden'); // Ensure dashboard content is visible
-    updateTeamStats(); // Refresh stats for dashboard
-}
-
-/**
- * Gets a Tailwind color class based on task status.
- * @param {string} status - The task status.
- * @returns {string} The Tailwind color class.
- */
-function getTaskStatusColorClass(status) {
-    switch (status) {
-        case 'Completed': return 'green';
-        case 'In Progress': return 'yellow';
-        case 'Blocked': return 'red';
-        default: return 'blue'; // Not Started
-    }
-}
-
+// ========== AI Assistant Functions ==========
 
 /**
  * Handles the submission of the chat form, sending the user's message to the AI.
- * This function now also manages the onboarding flow.
  * @param {Event} event - The form submission event.
  */
 async function handleChatFormSubmit(event) {
@@ -950,83 +859,81 @@ async function handleChatFormSubmit(event) {
     displayChatHistory();
     chatInput.value = ''; // Clear input field
 
-    // Check if in onboarding flow
-    if (app.onboardingStep !== -1) {
-        await processOnboardingStep(userMessage);
-        return; // Exit, as onboarding step handled the AI interaction
-    }
-
-    // If not in onboarding, handle as general chat or re-evaluation command
-    displayAIMessage("Thinking...", true); // Show typing indicator
+    // Show loading indicator
+    elements.aiResponse.innerHTML = `
+        <div class="flex items-center justify-center space-x-2 text-gray-600">
+            <div class="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
+            <span>AI is thinking...</span>
+        </div>
+    `;
+    elements.aiResponse.classList.remove('hidden');
 
     try {
+        const progressCallback = (progress, message) => {
+            elements.aiResponse.innerHTML = `
+                <div class="flex items-center justify-center space-x-2 text-gray-600">
+                    <div class="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
+                    <span>${message} (${progress}%)</span>
+                </div>
+            `;
+        };
+
+        const projectIdea = app.projectIdea || userMessage; // Use provided project idea or current user message
         const selectedProvider = document.getElementById('ai-provider').value;
-        const projectIdea = app.projectIdea || "a hackathon project"; // Fallback if no project idea
 
-        // Prompt for general chat or re-evaluation
-        const generalChatPrompt = `User is asking a question related to their hackathon project. Their current project idea is "${projectIdea}". Team members are: ${app.teamMembers.map(m => m.name).join(', ')}. Hackathon starts on ${app.hackathonSettings.startDate ? app.hackathonSettings.startDate.toLocaleDateString() : 'not set'} and lasts for ${app.hackathonSettings.duration || 'unknown'} hours.
-        
-        User's question: "${userMessage}"
-        
-        Please provide a helpful and concise response. If the user is asking to modify the schedule or tasks, encourage them to use the 'Re-evaluate Schedule with AI' button or to go to the 'Calendar' page for manual edits.`;
-        
-        // Use the general chat prompt for AI response
-        const aiResponseContent = await callGeminiAPI(generalChatPrompt);
+        // If the user's message looks like a project idea or initial query, try to generate tasks
+        // Otherwise, treat as a general chat interaction (which for now falls back to local generation)
+        const isProjectIdeaQuery = userMessage.toLowerCase().includes('project idea') ||
+                                   userMessage.toLowerCase().includes('generate tasks') ||
+                                   app.allTasks.length === 0;
 
-        if (aiResponseContent) {
-            displayAIMessage(aiResponseContent);
+        let generatedTasks;
+        if (isProjectIdeaQuery) {
+            generatedTasks = await generateTasksWithAI(projectIdea, selectedProvider, progressCallback);
         } else {
-            displayAIMessage("I'm having trouble processing that right now. Please try again or check your settings.");
+            // For general chat, fallback to local generation or a simpler AI response
+            // In a more advanced version, this would be a separate LLM call for conversational AI
+            generatedTasks = generateProjectTasks(projectIdea, progressCallback);
         }
-        renderDashboardContent(); // Update dashboard content
-    } catch (error) {
-        console.error('Error in general chat:', error);
-        displayAIMessage(`Sorry, I encountered an error: ${error.message}. Please check your API key or try again.`);
-    }
-}
 
-
-/**
- * Triggers the AI to re-evaluate and regenerate the schedule based on current data.
- */
-async function reEvaluateSchedule() {
-    if (!validateHackathonSettings() || app.teamMembers.length === 0 || !app.projectIdea) {
-        showMessage('Missing Information', 'Please ensure Hackathon Settings, Team Members, and Project Idea are all set before re-evaluating the schedule.', 'alert', () => {
-            showPage('settings'); // Suggest going to settings
-        });
-        return;
-    }
-
-    displayAIMessage("Re-evaluating and regenerating your schedule based on current settings and team. This may take a moment...", true); // Show typing indicator
-
-    try {
-        const selectedProvider = document.getElementById('ai-provider').value;
-        const generatedTasks = await generateTasksWithAI(app.projectIdea, selectedProvider, (progress, msg) => {
-            // Update the loading message in the chat history area
-            const loadingDiv = elements.chatHistory.querySelector('.animate-spin');
-            if (loadingDiv) {
-                loadingDiv.parentNode.querySelector('span').textContent = `${msg} (${progress}%)`;
-            } else {
-                 displayAIMessage(`${msg} (${progress}%)`, true); // If loading div disappeared, re-add
-            }
-        });
-        
-        app.allTasks = generatedTasks; // Overwrite with new tasks
+        app.allTasks = generatedTasks; // Overwrite or append based on logic in generateTasksWithAI/generateProjectTasks
         saveToLocalStorage();
 
-        displayAIMessage(`Schedule re-evaluated and updated! I've generated ${generatedTasks.length} tasks. Please check the Calendar page for the new plan.`);
-        renderDashboardContent(); // Refresh dashboard to show updated task count/info
-        if (app.currentPage === 'calendar') { // If user is on calendar, refresh it
-            initializeCalendar();
-            renderCalendar();
-        }
-
+        // Add AI response to chat history
+        const aiMessage = {
+            role: 'ai',
+            content: generatedTasks.length > 0 ? `I've generated ${generatedTasks.length} tasks for "${projectIdea}". You can view them in the Calendar section.` : "I couldn't generate tasks based on that. Please try rephrasing your project idea or check your settings."
+        };
+        app.chatHistory.push(aiMessage);
+        displayChatHistory();
+        
+        displayGeneratedTasks(generatedTasks); // Show the tasks on the AI Assistant page
+        
+        elements.aiResponse.classList.add('hidden'); // Hide loading
     } catch (error) {
-        console.error('Error re-evaluating schedule:', error);
-        displayAIMessage(`Sorry, I encountered an error during schedule re-evaluation: ${error.message}. Please check your API key or try again.`);
+        console.error('Error generating tasks:', error);
+        elements.aiResponse.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+        elements.aiResponse.classList.remove('hidden');
+        app.chatHistory.push({ role: 'ai', content: `Sorry, I encountered an error: ${error.message}. Please check your API key or try again.` });
+        displayChatHistory();
     }
 }
 
+/**
+ * Displays the chat history messages in the AI Assistant section.
+ */
+function displayChatHistory() {
+    elements.chatHistory.innerHTML = ''; // Clear existing messages
+    app.chatHistory.forEach(msg => {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `p-3 rounded-lg mb-2 ${msg.role === 'user' ? 'bg-blue-100 self-end text-right ml-auto' : 'bg-gray-200 self-start text-left mr-auto'}`;
+        messageDiv.style.maxWidth = '80%';
+        messageDiv.innerHTML = `<strong>${msg.role === 'user' ? 'You' : 'AI'}:</strong> ${msg.content}`;
+        elements.chatHistory.appendChild(messageDiv);
+    });
+    // Scroll to bottom
+    elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight;
+}
 
 /**
  * Generates tasks using the specified AI provider (Groq, OpenAI, etc.).
@@ -1047,13 +954,8 @@ async function generateTasksWithAI(projectIdea, provider, updateProgress) {
     const teamMembers = app.teamMembers;
 
     if (teamMembers.length === 0) {
-        throw new Error('No team members defined. Please add team members in the Team section.');
-    }
-    if (!projectIdea) {
-        throw new Error('Project idea is empty. Please provide a project idea.');
-    }
-    if (!startDate || isNaN(startDate.getTime()) || totalHours <= 0) {
-        throw new Error('Hackathon start date or duration is invalid. Please set them in Settings.');
+        showMessage('No Team Members', 'Please add at least one team member in the Team section to enable AI task assignment.', 'alert');
+        return generateProjectTasks(projectIdea, updateProgress); // Fallback to local generation
     }
 
     const prompt = `You are a hackathon project manager. Generate a detailed task breakdown for a ${totalHours}-hour hackathon project.
@@ -1071,17 +973,16 @@ IMPORTANT CONSTRAINTS:
 2. NEVER schedule tasks during a team member's sleep hours.
 3. Ensure task start and end times are within the hackathon's overall duration (${totalHours} hours).
 4. Use 24-hour time format for all times.
-5. Allocate tasks to specific team members by their ID. The assignedTo field should be an array of member IDs, not names. Use the exact IDs provided in the array below for assignedTo.
-   Available Team Member IDs and Names: ${JSON.stringify(teamMembers.map(m => ({ id: m.id, name: m.name })))}
+5. Allocate tasks to specific team members by their name.
 6. The total estimated hours for all tasks should be roughly equal to the hackathon duration.
 
 Generate a comprehensive list of tasks in JSON format. Each task object should have the following properties:
 - "title": string - Clear, action-oriented task name.
 - "description": string - Detailed description of what needs to be done.
 - "phase": string - One of "planning", "design", "development", "integration", "testing", "presentation".
-- "estimatedHours": number - Realistic time estimate in hours (integer or float, e.g., 2, 0.5).
+- "estimatedHours": number - Realistic time estimate in hours (integer).
 - "priority": string - "high", "medium", or "low".
-- "assignedTo": Array<string> - An ARRAY of the IDs of the team members assigned to this task. Use the exact IDs provided above.
+- "assignedTo": string - The NAME of the team member assigned to this task (e.g., "Alice", "Bob"). Ensure it matches one of the provided team member names exactly.
 
 Skill mapping guide:
 - Frontend tasks → members with Frontend, UI/UX skills
@@ -1105,6 +1006,8 @@ Return ONLY a JSON array of task objects, formatted exactly as specified, withou
     switch (provider) {
         case 'groq':
             apiUrl = '/groq'; // Use the local proxy endpoint
+            // API key is handled by the server-side proxy for Groq
+            // Frontend doesn't send the API key directly to Groq.
             payload = {
                 model: selectedModel,
                 messages: [
@@ -1119,6 +1022,9 @@ Return ONLY a JSON array of task objects, formatted exactly as specified, withou
                 ],
                 temperature: 0.7,
                 max_tokens: 2000,
+                // Groq's API often returns JSON directly based on prompt, but adding
+                // response_format could be beneficial if supported explicitly.
+                // For now, rely on prompt and robust parsing.
             };
             break;
         case 'openai':
@@ -1138,7 +1044,7 @@ Return ONLY a JSON array of task objects, formatted exactly as specified, withou
                 ],
                 temperature: 0.7,
                 max_tokens: 2000,
-                response_format: { type: "json_object" }
+                response_format: { type: "json_object" } // OpenAI specific for JSON
             };
             break;
         case 'anthropic':
@@ -1159,7 +1065,9 @@ Return ONLY a JSON array of task objects, formatted exactly as specified, withou
             };
             break;
         case 'google':
-            apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`; // Use API_KEY for Google
+            // The Canvas environment automatically provides the API key for gemini-2.0-flash
+            // No need for a manual API key input from the user in the UI for this model.
+            apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'; // Default to gemini-2.0-flash
             payload = {
                 contents: [{
                     parts: [{
@@ -1169,7 +1077,7 @@ Return ONLY a JSON array of task objects, formatted exactly as specified, withou
                 generationConfig: {
                     temperature: 0.7,
                     maxOutputTokens: 2000,
-                    responseMimeType: "application/json",
+                    responseMimeType: "application/json", // Crucial for structured output
                     responseSchema: {
                         type: "ARRAY",
                         items: {
@@ -1180,13 +1088,15 @@ Return ONLY a JSON array of task objects, formatted exactly as specified, withou
                                 "phase": { "type": "STRING", "enum": ["planning", "design", "development", "integration", "testing", "presentation"] },
                                 "estimatedHours": { "type": "NUMBER" },
                                 "priority": { "type": "STRING", "enum": ["high", "medium", "low"] },
-                                "assignedTo": { "type": "ARRAY", "items": { "type": "STRING" } }
+                                "assignedTo": { "type": "STRING" }
                             },
                             required: ["title", "description", "phase", "estimatedHours", "priority", "assignedTo"]
                         }
                     }
                 }
             };
+            // Note: API_KEY is intentionally left as "" in the payload for Google models in Canvas environment.
+            // Canvas will inject it at runtime.
             break;
         case 'cohere':
             apiUrl = 'https://api.cohere.ai/v1/chat';
@@ -1202,6 +1112,7 @@ Return ONLY a JSON array of task objects, formatted exactly as specified, withou
         case 'other':
             apiUrl = localStorage.getItem('other_endpoint');
             headers['Authorization'] = `Bearer ${apiKey}`;
+            // Assuming 'other' endpoint is OpenAI-compatible
             payload = {
                 model: selectedModel,
                 messages: [
@@ -1223,7 +1134,9 @@ Return ONLY a JSON array of task objects, formatted exactly as specified, withou
             throw new Error('Invalid AI provider selected.');
     }
 
-    if (!apiKey && provider !== 'google' && provider !== 'groq') { // Google Gemini API key is managed by Canvas
+    // For Groq (proxied via server.js), API key is handled by the server.
+    // For other providers (direct frontend call), check if API key is set.
+    if (!apiKey && provider !== 'google' && provider !== 'groq') {
         throw new Error(`API key for ${provider} is not set. Please go to Settings to enter it.`);
     }
     if (provider === 'other' && !apiUrl) {
@@ -1254,12 +1167,15 @@ Return ONLY a JSON array of task objects, formatted exactly as specified, withou
             aiResponseContent = data.candidates[0].content.parts[0].text;
         } else if (provider === 'cohere') {
             aiResponseContent = data.text;
-        } else { // For OpenAI and 'other' which follow OpenAI-like structure
+        } else {
+            // OpenAI, Groq, and compatible providers
             aiResponseContent = data.choices[0].message.content;
         }
         
+        // Parse the AI response JSON
         let tasks;
         try {
+            // Some models might wrap JSON in markdown code blocks, try to extract if necessary
             const jsonMatch = aiResponseContent.match(/```json\n([\s\S]*?)\n```/);
             if (jsonMatch && jsonMatch[1]) {
                 tasks = JSON.parse(jsonMatch[1]);
@@ -1268,70 +1184,51 @@ Return ONLY a JSON array of task objects, formatted exactly as specified, withou
             }
         } catch (parseError) {
             console.error('Failed to parse AI response as JSON:', aiResponseContent, parseError);
-            throw new Error('AI response was not valid JSON. Please try again or check prompt. Raw response: ' + aiResponseContent.substring(0, 200));
+            throw new Error('AI response was not valid JSON. Please try again or check prompt.');
         }
         
+        // Process and validate tasks
         const processedTasks = tasks.map((task, index) => {
-            // Ensure assignedTo is always an array of valid member IDs
-            let assignedMemberIds = [];
-            if (Array.isArray(task.assignedTo)) {
-                // Filter to ensure only valid IDs are included
-                assignedMemberIds = task.assignedTo.filter(id => teamMembers.some(m => m.id === id));
-            } else if (typeof task.assignedTo === 'string') {
-                // If AI provides a single name, try to find the ID
-                const memberByName = teamMembers.find(m => m.name.toLowerCase() === task.assignedTo.toLowerCase());
-                if (memberByName) {
-                    assignedMemberIds.push(memberByName.id);
-                } else {
-                    console.warn(`AI assigned task "${task.title}" to unknown member name "${task.assignedTo}".`);
-                }
-            }
+            // Find team member by name (case-insensitive search)
+            const assignedMember = teamMembers.find(m => m.name.toLowerCase() === task.assignedTo.toLowerCase());
+            const assignedMemberId = assignedMember ? assignedMember.id : null;
 
-            // Fallback to random assignment if no valid assignees found for the task
-            if (assignedMemberIds.length === 0) {
-                 const randomMember = teamMembers[index % teamMembers.length];
-                 if (randomMember) {
-                     assignedMemberIds.push(randomMember.id);
-                     console.warn(`Task "${task.title}" had no valid assigned member; assigned to ${randomMember.name}.`);
-                 } else {
-                     console.error(`Cannot assign task "${task.title}": No team members available.`);
-                     return null; // Task cannot be assigned
-                 }
+            // Handle scenario where assigned member from AI is not found
+            if (!assignedMemberId) {
+                 console.warn(`AI assigned task "${task.title}" to "${task.assignedTo}" but no such member found. Assigning to a random member.`);
+            }
+            
+            // Fallback to random assignment if assigned member is not found or no members exist
+            const finalAssignedMemberId = assignedMemberId || (teamMembers.length > 0 ? teamMembers[index % teamMembers.length].id : null);
+            if (!finalAssignedMemberId) {
+                console.error(`Cannot assign task "${task.title}": No team members available.`);
+                return null; // Or handle as an unassigned task
             }
 
             // Calculate task dates, respecting sleep schedules and total hackathon duration
-            // This time allocation can be more complex, but for simplicity, we chain tasks
-            // or distribute them based on estimated hours starting from hackathon start.
-            // For now, let's just make sure they fit within the hackathon duration and respect sleep.
+            let taskStart = addHours(startDate, app.allTasks.length > 0 ? app.allTasks[app.allTasks.length - 1].endDate : 0); // Start after last task
+            if (index === 0) taskStart = new Date(startDate); // First task starts at hackathon start
 
-            let currentEffectiveTime = new Date(startDate);
-            // If there are existing tasks, we can try to start new tasks after them
-            if (app.allTasks.length > 0) {
-                 const lastTaskEndDate = app.allTasks[app.allTasks.length - 1].endDate;
-                 if (lastTaskEndDate && lastTaskEndDate > currentEffectiveTime) {
-                     currentEffectiveTime = new Date(lastTaskEndDate);
-                 }
-            }
-            
-            // Adjust start time to respect assigned members' sleep schedules
-            const firstAssignedMemberId = assignedMemberIds[0]; // Take first assigned for sleep check
-            let taskStart = getNextAvailableTime(currentEffectiveTime, firstAssignedMemberId, startDate, totalHours);
-            
+            taskStart = getNextAvailableTime(taskStart, finalAssignedMemberId, startDate, totalHours);
             let taskEnd = addHours(taskStart, task.estimatedHours || 1);
 
             // Ensure task doesn't go beyond hackathon end date
             const hackathonEndDate = calculateEndDate(startDate, totalHours);
             if (taskEnd > hackathonEndDate) {
+                // If task exceeds hackathon end, clip it or re-evaluate.
+                // For simplicity, we will clip it and warn. In a real app,
+                // you might split it or re-prioritize.
                 taskEnd = hackathonEndDate;
-                const actualHours = (taskEnd.getTime() - taskStart.getTime()) / (1000 * 60 * 60);
+                const actualHours = (taskEnd - taskStart) / (1000 * 60 * 60);
                 if (actualHours < (task.estimatedHours || 1)) {
                     console.warn(`Task "${task.title}" adjusted to fit hackathon duration. Estimated ${task.estimatedHours}h, but only ${actualHours.toFixed(1)}h could be allocated.`);
-                    task.estimatedHours = parseFloat(actualHours.toFixed(1));
+                    task.estimatedHours = parseFloat(actualHours.toFixed(1)); // Update estimated hours
                 }
             }
 
+
             return {
-                id: generateId(),
+                id: generateId(), // Ensure unique ID for AI-generated tasks
                 title: task.title || 'Untitled Task',
                 description: task.description || '',
                 phase: task.phase || 'development',
@@ -1339,18 +1236,22 @@ Return ONLY a JSON array of task objects, formatted exactly as specified, withou
                 endDate: taskEnd,
                 estimatedHours: task.estimatedHours || 1,
                 priority: task.priority || 'medium',
-                assignedTo: assignedMemberIds, // Ensure it's an array of IDs
+                assignedTo: [finalAssignedMemberId], // Always an array
                 status: 'Not Started'
             };
-        }).filter(task => task !== null);
+        }).filter(task => task !== null); // Filter out any null tasks if assignment failed
 
+        // Sort tasks by start date
         processedTasks.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
         
         return processedTasks;
         
     } catch (error) {
         console.error(`API error for ${provider}:`, error);
-        throw new Error(`Failed to get tasks from AI: ${error.message}. Please check your API key and selected model in Settings, or try a different prompt.`);
+        showMessage('AI Error', `Failed to get tasks from AI: ${error.message}. Please check your API key and selected model in Settings, or try a different prompt.`, 'alert');
+        // Fallback to local generation if AI call fails
+        console.log('Falling back to local task generation');
+        return generateProjectTasks(projectIdea, updateProgress);
     }
 }
 
@@ -1402,12 +1303,8 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
         presentation: 0.05   // 5% for presentation prep
     };
     
-    let currentTime = new Date(startDate); // Tracks elapsed time from hackathon start for task scheduling
+    let currentTime = 0; // Tracks elapsed time from hackathon start for task scheduling
     
-    // Declare taskHours and tempTaskEnd once at the beginning of the function
-    let taskHours;
-    let tempTaskEnd;
-
     /**
      * Helper function to assign team members based on skills and availability.
      * @param {string} taskPhase - The phase of the task.
@@ -1572,8 +1469,8 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
     if (planningHours > 0) {
         let task1MemberId = assignMember("planning", "Team Kickoff & Brainstorming");
         let task1Start = getNextAvailableTime(currentTaskStartTime, task1MemberId, startDate, totalHours);
-        taskHours = Math.min(1, planningHours); // Reassign, not redeclare
-        let task1End = addHours(task1Start, taskHours);
+        let task1Hours = Math.min(1, planningHours);
+        let task1End = addHours(task1Start, task1Hours);
         
         tasks.push({
             id: generateId(), // Ensure unique ID
@@ -1582,7 +1479,7 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
             phase: "planning",
             startDate: task1Start,
             endDate: task1End,
-            estimatedHours: taskHours,
+            estimatedHours: task1Hours,
             priority: "high",
             assignedTo: [task1MemberId],
             status: 'Not Started'
@@ -1593,8 +1490,8 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
     if (planningHours - 1 > 0) {
         let task2MemberId = assignMember("planning", "Technical Research & Feasibility Study");
         let task2Start = getNextAvailableTime(currentTaskStartTime, task2MemberId, startDate, totalHours);
-        taskHours = Math.max(1, planningHours - 1); // Reassign
-        let task2End = addHours(task2Start, taskHours);
+        let task2Hours = Math.max(1, planningHours - 1);
+        let task2End = addHours(task2Start, task2Hours);
         
         tasks.push({
             id: generateId(), // Ensure unique ID
@@ -1603,7 +1500,7 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
             phase: "planning",
             startDate: task2Start,
             endDate: task2End,
-            estimatedHours: taskHours,
+            estimatedHours: task2Hours,
             priority: "high",
             assignedTo: [task2MemberId],
             status: 'Not Started'
@@ -1619,7 +1516,7 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
     if (designHours > 0) {
         let taskMemberId = assignMember("design", "System Architecture Design");
         let taskStart = getNextAvailableTime(currentTaskStartTime, taskMemberId, startDate, totalHours);
-        taskHours = Math.floor(designHours * 0.4); // Reassign
+        let taskHours = Math.floor(designHours * 0.4);
         let taskEnd = addHours(taskStart, taskHours);
 
         tasks.push({
@@ -1638,8 +1535,8 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
 
         taskMemberId = assignMember("design", "UI/UX Design & Wireframes");
         taskStart = getNextAvailableTime(currentTaskStartTime, taskMemberId, startDate, totalHours);
-        taskHours = Math.floor(designHours * 0.6); // Reassign
-        tempTaskEnd = addHours(taskStart, taskHours); // Reassign
+        taskHours = Math.floor(designHours * 0.6);
+        let tempTaskEnd = addHours(taskStart, taskHours); // Calculate temp end to check against hackathon end
         taskEnd = tempTaskEnd > calculateEndDate(startDate, totalHours) ? calculateEndDate(startDate, totalHours) : tempTaskEnd;
 
         tasks.push({
@@ -1667,7 +1564,7 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
         if (isWebApp || isMobile) {
             let taskMemberId = assignMember("development", "Frontend Setup & Base Structure");
             let taskStart = getNextAvailableTime(currentTaskStartTime, taskMemberId, startDate, totalHours);
-            taskHours = Math.floor(devHours * 0.15); // Reassign
+            let taskHours = Math.floor(devHours * 0.15);
             let taskEnd = addHours(taskStart, taskHours);
 
             tasks.push({
@@ -1686,8 +1583,8 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
             
             taskMemberId = assignMember("development", "Implement Core UI Components");
             taskStart = getNextAvailableTime(currentTaskStartTime, taskMemberId, startDate, totalHours);
-            taskHours = Math.floor(devHours * 0.25); // Reassign
-            tempTaskEnd = addHours(taskStart, taskHours); // Reassign
+            taskHours = Math.floor(devHours * 0.25);
+            let tempTaskEnd = addHours(taskStart, taskHours); // Calculate temp end to check against hackathon end
             taskEnd = tempTaskEnd > calculateEndDate(startDate, totalHours) ? calculateEndDate(startDate, totalHours) : tempTaskEnd;
 
 
@@ -1710,8 +1607,8 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
         if (hasBackend) {
             let taskMemberId = assignMember("development", "Backend API Development");
             let taskStart = getNextAvailableTime(currentTaskStartTime, taskMemberId, startDate, totalHours);
-            taskHours = Math.floor(devHours * 0.3); // Reassign
-            tempTaskEnd = addHours(taskStart, taskHours); // Reassign
+            let taskHours = Math.floor(devHours * 0.3);
+            let tempTaskEnd = addHours(taskStart, taskHours);
             taskEnd = tempTaskEnd > calculateEndDate(startDate, totalHours) ? calculateEndDate(startDate, totalHours) : tempTaskEnd;
 
             tasks.push({
@@ -1730,8 +1627,8 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
             
             taskMemberId = assignMember("development", "Database Design & Implementation");
             taskStart = getNextAvailableTime(currentTaskStartTime, taskMemberId, startDate, totalHours);
-            taskHours = Math.floor(devHours * 0.2); // Reassign
-            tempTaskEnd = addHours(taskStart, taskHours); // Reassign
+            taskHours = Math.floor(devHours * 0.2);
+            tempTaskEnd = addHours(taskStart, taskHours);
             taskEnd = tempTaskEnd > calculateEndDate(startDate, totalHours) ? calculateEndDate(startDate, totalHours) : tempTaskEnd;
 
             tasks.push({
@@ -1753,8 +1650,8 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
         if (hasAI) {
             let taskMemberId = assignMember("development", "AI Model Development");
             let taskStart = getNextAvailableTime(currentTaskStartTime, taskMemberId, startDate, totalHours);
-            taskHours = Math.floor(devHours * 0.3); // Reassign
-            tempTaskEnd = addHours(taskStart, taskHours); // Reassign
+            let taskHours = Math.floor(devHours * 0.3);
+            let tempTaskEnd = addHours(taskStart, taskHours);
             taskEnd = tempTaskEnd > calculateEndDate(startDate, totalHours) ? calculateEndDate(startDate, totalHours) : tempTaskEnd;
 
             tasks.push({
@@ -1775,8 +1672,8 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
         // Core feature implementation (general catch-all)
         let taskMemberId = assignMember("development", "Implement Core Features");
         let taskStart = getNextAvailableTime(currentTaskStartTime, taskMemberId, startDate, totalHours);
-        taskHours = Math.floor(devHours * 0.5); // Reassign (Adjust based on other dev tasks already added)
-        tempTaskEnd = addHours(taskStart, taskHours); // Reassign
+        let taskHours = Math.floor(devHours * 0.5); // Adjust based on other dev tasks already added
+        let tempTaskEnd = addHours(taskStart, taskHours);
         taskEnd = tempTaskEnd > calculateEndDate(startDate, totalHours) ? calculateEndDate(startDate, totalHours) : tempTaskEnd;
 
         tasks.push({
@@ -1802,7 +1699,7 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
     if (integrationHours > 0) {
         let taskMemberId = assignMember("integration", "System Integration");
         let taskStart = getNextAvailableTime(currentTaskStartTime, taskMemberId, startDate, totalHours);
-        tempTaskEnd = addHours(taskStart, integrationHours); // Reassign
+        let tempTaskEnd = addHours(taskStart, integrationHours);
         taskEnd = tempTaskEnd > calculateEndDate(startDate, totalHours) ? calculateEndDate(startDate, totalHours) : tempTaskEnd;
 
         tasks.push({
@@ -1825,7 +1722,7 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
     if (testingHours > 0) {
         let taskMemberId = assignMember("testing", "Testing & Bug Fixes");
         let taskStart = getNextAvailableTime(currentTaskStartTime, taskMemberId, startDate, totalHours);
-        tempTaskEnd = addHours(taskStart, testingHours); // Reassign
+        let tempTaskEnd = addHours(taskStart, testingHours);
         taskEnd = tempTaskEnd > calculateEndDate(startDate, totalHours) ? calculateEndDate(startDate, totalHours) : tempTaskEnd;
 
         tasks.push({
@@ -1851,7 +1748,7 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
     if (presentationHours > 0) {
         let taskMemberId = assignMember("presentation", "Create Demo & Presentation");
         let taskStart = getNextAvailableTime(currentTaskStartTime, taskMemberId, startDate, totalHours);
-        tempTaskEnd = addHours(taskStart, presentationHours); // Reassign
+        let tempTaskEnd = addHours(taskStart, presentationHours);
         taskEnd = tempTaskEnd > calculateEndDate(startDate, totalHours) ? calculateEndDate(startDate, totalHours) : tempTaskEnd;
 
         tasks.push({
@@ -1878,25 +1775,91 @@ function generateProjectTasks(projectIdea, updateProgress = null) {
 }
 
 // Display generated tasks in the UI
-// This function is now superseded by renderDashboardContent which displays a summary
 function displayGeneratedTasks(tasks) {
-    // This function is now primarily for internal logic to update app.allTasks,
-    // and renderDashboardContent handles displaying the summary.
-    // If you explicitly need to render the full list somewhere else, this can be used.
-    console.log(`Generated ${tasks.length} tasks.`);
-    // The dashboard will show a summary and direct to calendar for full view.
+    const tasksByPhase = tasks.reduce((acc, task) => {
+        if (!acc[task.phase]) acc[task.phase] = [];
+        acc[task.phase].push(task);
+        return acc;
+    }, {});
+    
+    let html = `
+        <div class="space-y-6">
+            <h4 class="text-xl font-semibold text-gray-800">✨ AI Generated ${tasks.length} Tasks</h4>
+            <p class="text-gray-600">Based on your project idea, I've created a comprehensive task breakdown optimized for your ${app.hackathonSettings.duration}-hour hackathon with ${app.teamMembers.length} team members.</p>
+    `;
+    
+    const phaseNames = {
+        planning: '📋 Planning & Research',
+        design: '🎨 Design & Architecture',
+        development: '💻 Core Development',
+        integration: '🔗 Integration',
+        testing: '🧪 Testing & QA',
+        presentation: '🎤 Presentation Prep'
+    };
+    
+    Object.entries(tasksByPhase).forEach(([phase, phaseTasks]) => {
+        html += `
+            <div class="border-l-4 border-blue-500 pl-4">
+                <h5 class="font-semibold text-lg mb-3">${phaseNames[phase] || phase}</h5>
+                <div class="space-y-2">
+        `;
+        
+        phaseTasks.forEach(task => {
+            // Handle both single assignee (legacy) and multiple assignees
+            const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+            const assignedMembers = assignees.map(id => app.teamMembers.find(m => m.id === id)).filter(m => m);
+            
+            html += `
+                <div class="bg-gray-50 p-3 rounded">
+                    <div class="flex justify-between items-start">
+                        <strong>${task.title}</strong>
+                        <div class="flex gap-1 flex-wrap">
+                            ${assignedMembers.map(member => `
+                                <span class="team-badge team-member-${member.colorIndex + 1} text-xs">
+                                    ${member.name}
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-1">${task.description}</p>
+                    <p class="text-xs text-gray-500 mt-2">
+                        ${formatDate(task.startDate)} - ${formatDate(task.endDate)}
+                        (${task.estimatedHours}h)
+                    </p>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+            <div class="mt-6 flex gap-3">
+                <button onclick="showPage('calendar')" class="btn btn-primary">
+                    View in Calendar
+                </button>
+                <button onclick="exportTasks()" class="btn btn-secondary">
+                    Export Tasks
+                </button>
+            </div>
+        </div>
+    `;
+    
+    elements.aiResponse.innerHTML = html;
 }
 
 /**
  * Exports all application data (settings, team, tasks, project idea) as a JSON file.
  */
-function exportData() { // Renamed from exportTasks to match setupEventListeners
+function exportTasks() {
     const exportData = {
         projectIdea: app.projectIdea,
         hackathonSettings: app.hackathonSettings,
         teamMembers: app.teamMembers,
-        allTasks: app.allTasks,
-        chatHistory: app.chatHistory // Export chat history too
+        allTasks: app.allTasks
     };
     
     const dataStr = JSON.stringify(exportData, null, 2);
@@ -1928,6 +1891,8 @@ function handleImportData(event) {
                 // Clear existing data first
                 localStorage.removeItem('hackmanagerData');
                 localStorage.removeItem('hasSeenOnboarding');
+                // Note: API keys are not cleared by default during import.
+                // If you want to import API keys, they would need to be part of the exportData structure.
 
                 // Load imported data into app state
                 if (importedData.hackathonSettings) {
@@ -1952,13 +1917,10 @@ function handleImportData(event) {
                 if (importedData.projectIdea) {
                     app.projectIdea = importedData.projectIdea;
                 }
-                if (importedData.chatHistory) {
-                    app.chatHistory = importedData.chatHistory;
-                }
 
                 saveToLocalStorage();
                 initializeUI(); // Re-initialize UI with new data
-                startInitialAppFlow(); // Re-evaluate initial flow after import
+                showPage('ai-assistant'); // Go to AI assistant page
                 showMessage('Import Successful', 'Data imported successfully. Your application has been updated.', 'alert');
             }, () => {
                 showMessage('Import Cancelled', 'Data import cancelled.', 'alert');
@@ -1997,7 +1959,6 @@ function createTask(taskData) {
     
     app.allTasks.push(task);
     saveToLocalStorage();
-    renderDashboardContent(); // Refresh dashboard to show new task summary
     return task;
 }
 
@@ -2017,7 +1978,6 @@ function updateTask(taskId, updates) {
             renderTasks();
             renderCalendar();
         }
-        renderDashboardContent(); // Update dashboard with changed task summary
     }
 }
 
@@ -2036,8 +1996,7 @@ function deleteTask(taskId) {
     
     saveToLocalStorage();
     updateTeamStats();
-    renderDashboardContent(); // Update dashboard
-
+    
     // Re-render if on calendar page
     if (app.currentPage === 'calendar') {
         renderTasks();
@@ -2070,7 +2029,6 @@ function assignTask(taskId, memberId) {
         if (app.currentPage === 'calendar') {
             renderTasks();
         }
-        renderDashboardContent(); // Update dashboard
     }
 }
 
@@ -2089,7 +2047,6 @@ function unassignTask(taskId, memberId) {
         if (app.currentPage === 'calendar') {
             renderTasks();
         }
-        renderDashboardContent(); // Update dashboard
     }
 }
 
@@ -2097,44 +2054,42 @@ function unassignTask(taskId, memberId) {
  * Renders all tasks (currently not used to display on AI Assistant page, but could be).
  */
 function renderTasks() {
-    // This function is generally used for displaying tasks in a list format, e.g., on the AI Assistant page
-    // if we wanted a full list there. For now, the dashboard provides a summary.
-    // If you wanted to re-enable a full task list on the AI Assistant page directly:
-    // if (!elements.tasksList) return;
+    if (!elements.tasksList) return;
     
-    // elements.tasksList.innerHTML = '';
+    elements.tasksList.innerHTML = '';
     
-    // if (app.allTasks.length === 0) {
-    //     elements.tasksList.innerHTML = '<p class="text-gray-500">No tasks yet. Generate tasks from your project idea.</p>';
-    //     return;
-    // }
+    if (app.allTasks.length === 0) {
+        elements.tasksList.innerHTML = '<p class="text-gray-500">No tasks yet. Generate tasks from your project idea.</p>';
+        return;
+    }
     
-    // app.allTasks.forEach(task => {
-    //     const taskDiv = document.createElement('div');
-    //     taskDiv.className = 'task-item cursor-pointer hover:shadow-md';
-    //     taskDiv.onclick = () => showTaskModal(task.id);
+    app.allTasks.forEach(task => {
+        const taskDiv = document.createElement('div');
+        taskDiv.className = 'task-item cursor-pointer hover:shadow-md';
+        taskDiv.onclick = () => showTaskModal(task.id);
         
-    //     const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
-    //     const assignedMembers = assignees.map(id => app.teamMembers.find(m => m.id === id)).filter(m => m);
+        // Handle both single assignee (legacy) and multiple assignees
+        const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+        const assignedMembers = assignees.map(id => app.teamMembers.find(m => m.id === id)).filter(m => m);
         
-    //     taskDiv.innerHTML = `
-    //         <div class="flex justify-between items-start mb-2">
-    //             <h4 class="font-medium">${task.title}</h4>
-    //             <div class="flex gap-1 flex-wrap">
-    //                 ${assignedMembers.map(member => `
-    //                     <span class="team-badge team-member-${member.colorIndex + 1} text-xs">${member.name}</span>
-    //                 `).join('')}
-    //             </div>
-    //         </div>
-    //         <p class="text-sm text-gray-600">${task.description || 'No description'}</p>
-    //         <div class="flex justify-between items-center mt-2">
-    //             <span class="text-xs text-gray-500">${formatDate(task.startDate)} - ${formatDate(task.endDate)}</span>
-    //             <span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">${task.status || 'Not Started'}</span>
-    //         </div>
-    //     `;
+        taskDiv.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+                <h4 class="font-medium">${task.title}</h4>
+                <div class="flex gap-1 flex-wrap">
+                    ${assignedMembers.map(member => `
+                        <span class="team-badge team-member-${member.colorIndex + 1} text-xs">${member.name}</span>
+                    `).join('')}
+                </div>
+            </div>
+            <p class="text-sm text-gray-600">${task.description || 'No description'}</p>
+            <div class="flex justify-between items-center mt-2">
+                <span class="text-xs text-gray-500">${formatDate(task.startDate)} - ${formatDate(task.endDate)}</span>
+                <span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">${task.status || 'Not Started'}</span>
+            </div>
+        `;
         
-    //     elements.tasksList.appendChild(taskDiv);
-    // });
+        elements.tasksList.appendChild(taskDiv);
+    });
 }
 
 // Filter tasks (placeholder)
@@ -2175,7 +2130,7 @@ function renderCalendar() {
         document.getElementById('calendar-container').innerHTML = `
             <div class="text-center py-12 text-gray-500">
                 <p>Please configure hackathon settings first (Start Date and Duration).</p>
-                <button onclick="showPage('settings')" class="btn bg-blue-600 hover:bg-blue-700 text-white mt-4">
+                <button onclick="showPage('settings')" class="btn btn-primary mt-4">
                     Go to Settings
                 </button>
             </div>
@@ -2225,7 +2180,7 @@ function renderTimeColumn() {
         currentHour.setHours(currentHour.getHours() + i);
         
         const timeSlot = document.createElement('div');
-        timeSlot.className = 'absolute w-full text-xs text-gray-400 px-2'; // Dark theme adjustment
+        timeSlot.className = 'absolute w-full text-xs text-gray-500 px-2';
         timeSlot.style.top = `${i * 80}px`; // Position each hour marker
         timeSlot.textContent = currentHour.getHours().toString().padStart(2, '0') + ':00';
         
@@ -2269,7 +2224,7 @@ function renderCalendarGrid() {
         dayDate.setDate(dayDate.getDate() + d);
         
         const dayHeader = document.createElement('div');
-        dayHeader.className = 'flex-shrink-0 text-center text-sm font-medium text-gray-300 py-3 border-r border-gray-700 bg-gray-800'; // Dark theme adjustment
+        dayHeader.className = 'flex-shrink-0 text-center text-sm font-medium text-gray-700 py-3 border-r border-gray-200';
         dayHeader.style.width = `${totalWidth / days}px`;
         dayHeader.textContent = dayDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         
@@ -2279,14 +2234,14 @@ function renderCalendarGrid() {
     
     // Create grid container for tasks and hour lines
     const grid = document.createElement('div');
-    grid.className = 'relative bg-gray-900'; // Dark background for grid
+    grid.className = 'relative';
     grid.style.height = `${app.hackathonSettings.duration * 80}px`; // 80px per hour
     grid.style.width = `${totalWidth}px`;
     
     // Create hour grid lines
     for (let h = 0; h <= app.hackathonSettings.duration; h++) {
         const hourLine = document.createElement('div');
-        hourLine.className = 'absolute w-full border-b border-gray-700'; // Darker grid lines
+        hourLine.className = 'absolute w-full border-b border-gray-200';
         hourLine.style.top = `${h * 80}px`;
         grid.appendChild(hourLine);
     }
@@ -2297,7 +2252,7 @@ function renderCalendarGrid() {
     
     for (let d = 0; d < days; d++) {
         const dayColumn = document.createElement('div');
-        dayColumn.className = 'border-r border-gray-700'; // Darker grid lines
+        dayColumn.className = 'border-r border-gray-200';
         dayColumn.style.width = `${totalWidth / days}px`;
         dayColumn.onclick = () => { // Allow clicking on day columns to add tasks
             const clickedDate = new Date(startDate);
@@ -2361,7 +2316,9 @@ function createTaskElements(task, calendarStart, totalDays, totalWidth) {
     const effectiveRenderEnd = new Date(Math.min(taskEnd.getTime(), calendarEnd.getTime()));
     
     // Calculate the day index for starting and ending segment
+    // Using floor for startDay to ensure task is shown on its actual start day
     const startDayIndex = Math.floor((effectiveRenderStart.getTime() - calendarStart.getTime()) / (1000 * 60 * 60 * 24));
+    // Using floor for endDayIndex as well, so if a task ends at 00:00 on day N, it's considered to end on day N-1
     const endDayIndex = Math.floor((effectiveRenderEnd.getTime() - calendarStart.getTime()) / (1000 * 60 * 60 * 24));
 
     const dayWidth = totalWidth / totalDays; // Width of a single day column
@@ -2380,9 +2337,9 @@ function createTaskElements(task, calendarStart, totalDays, totalWidth) {
 
         if (currentSegmentStart >= currentSegmentEnd) continue; // Skip if this segment is empty
 
-        // Calculate position relative to the start of the entire hackathon (or current day)
-        const minutesFromDayStart = (currentSegmentStart.getTime() - segmentDayStart.getTime()) / (1000 * 60);
-        const topPosition = (minutesFromDayStart / 60) * 80; // 80px per hour within the day column
+        // Calculate position relative to the start of the entire hackathon
+        const minutesFromHackathonStart = (currentSegmentStart.getTime() - calendarStart.getTime()) / (1000 * 60);
+        const topPosition = (minutesFromHackathonStart / 60) * 80; // 80px per hour
 
         // Calculate height of this segment
         const durationMinutes = (currentSegmentEnd.getTime() - currentSegmentStart.getTime()) / (1000 * 60);
@@ -2398,10 +2355,8 @@ function createTaskElements(task, calendarStart, totalDays, totalWidth) {
                 return `${color} ${index / assignedMembers.length * 100}%`;
             });
             taskEl.style.background = `linear-gradient(to right, ${colors.join(', ')})`;
-        } else if (assignedMembers.length === 1) {
-            taskEl.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue(`--team-color-${assignedMembers[0].colorIndex + 1}`);
         } else {
-            taskEl.style.backgroundColor = '#9ca3af'; // Default grey for unassigned/error
+            taskEl.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue(`--team-color-${assignedMembers[0].colorIndex + 1}`);
         }
         
         taskEl.className = `absolute rounded px-2 py-1 cursor-pointer hover:shadow-lg transition-shadow text-white text-xs overflow-hidden calendar-task`;
@@ -2413,11 +2368,11 @@ function createTaskElements(task, calendarStart, totalDays, totalWidth) {
         
         // Add special styling for multi-day tasks (remove relevant rounded corners)
         if (day === startDayIndex && day < endDayIndex) { // Starts on this day, continues to next
-            taskEl.classList.add('rounded-r-none');
+            taskEl.classList.add('task-multi-day-start');
         } else if (day > startDayIndex && day < endDayIndex) { // Middle day of a multi-day task
-            taskEl.classList.remove('rounded'); // Remove all rounded
+            taskEl.classList.add('task-multi-day-middle');
         } else if (day === endDayIndex && day > startDayIndex) { // Ends on this day, started before
-            taskEl.classList.add('rounded-l-none');
+            taskEl.classList.add('task-multi-day-end');
         }
         // If task is a single day, it will just have default rounded class
 
@@ -2530,7 +2485,7 @@ function renderTeamMembersSidebar() {
 
     app.teamMembers.forEach(member => {
         const memberItem = document.createElement('div');
-        memberItem.className = 'cursor-pointer hover:bg-gray-700 p-3 rounded transition-colors bg-gray-800 shadow-sm text-white'; // Dark theme adjustment
+        memberItem.className = 'cursor-pointer hover:bg-gray-100 p-3 rounded transition-colors bg-white shadow-sm';
         memberItem.onclick = () => showMemberTasks(member.id);
         
         // Count tasks where member is assigned (handle both single and multiple assignees)
@@ -2547,9 +2502,9 @@ function renderTeamMembersSidebar() {
         memberItem.innerHTML = `
             <div class="flex items-center justify-between">
                 <span class="team-badge team-member-${member.colorIndex + 1} text-sm">${member.name}</span>
-                <span class="text-xs text-gray-400">${taskCount} tasks</span>
+                <span class="text-xs text-gray-500">${taskCount} tasks</span>
             </div>
-            <div class="text-xs text-gray-400 mt-1">${totalHours}h total</div>
+            <div class="text-xs text-gray-600 mt-1">${totalHours}h total</div>
         `;
         
         membersGrid.appendChild(memberItem);
@@ -2588,13 +2543,14 @@ function showMemberTasks(memberId) {
         const assignedMembers = assignees.map(id => app.teamMembers.find(m => m.id === id)).filter(m => m);
         
         return `
-            <div class="p-2 bg-gray-700 rounded border border-gray-600 cursor-pointer hover:shadow-sm text-white">
+            <div class="p-2 bg-white rounded border border-gray-200 cursor-pointer hover:shadow-sm"
+                 onclick="showTaskModal('${task.id}')">
                 <div class="font-medium">${task.title}</div>
-                <div class="text-xs text-gray-400">
+                <div class="text-xs text-gray-500">
                     ${formatDate(task.startDate)} - ${formatDate(task.endDate)}
                     (${task.estimatedHours}h)
                 </div>
-                <div class="text-xs text-gray-400 mt-1">Phase: ${task.phase} | Priority: ${task.priority} | Status: ${task.status}</div>
+                <div class="text-xs text-gray-600 mt-1">Phase: ${task.phase} | Priority: ${task.priority} | Status: ${task.status}</div>
                 ${assignedMembers.length > 1 ? `
                     <div class="text-xs text-gray-500 mt-1">
                         Assigned with: ${assignedMembers.filter(m => m.id !== memberId).map(m => m.name).join(', ')}
@@ -2672,10 +2628,10 @@ function showTaskModal(taskId = null) {
     
     // Create modal content
     modal.innerHTML = `
-        <div class="modal-content bg-gray-800 text-white rounded-lg p-6 shadow-xl">
+        <div class="modal-content">
             <div class="flex justify-between items-start mb-4">
                 <h3 class="text-xl font-semibold">${isEditing ? 'Edit Task' : 'Create New Task'}</h3>
-                <button onclick="hideTaskModal()" class="text-gray-400 hover:text-gray-200">
+                <button onclick="hideTaskModal()" class="text-gray-400 hover:text-gray-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -2684,21 +2640,21 @@ function showTaskModal(taskId = null) {
             
             <form id="task-form" class="space-y-4">
                 <div>
-                    <label class="form-label text-gray-300">Task Title</label>
-                    <input type="text" id="task-title" class="form-input bg-gray-700 text-white border-gray-600 focus:border-blue-500"
+                    <label class="form-label">Task Title</label>
+                    <input type="text" id="task-title" class="form-input"
                            value="${task ? task.title : ''}" required>
                 </div>
                 
                 <div>
-                    <label class="form-label text-gray-300">Description</label>
-                    <textarea id="task-description" class="form-input h-24 bg-gray-700 text-white border-gray-600 focus:border-blue-500"
+                    <label class="form-label">Description</label>
+                    <textarea id="task-description" class="form-input h-24"
                               placeholder="Describe the task...">${task ? task.description : ''}</textarea>
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="form-label text-gray-300">Assigned To</label>
-                        <div class="space-y-2 max-h-32 overflow-y-auto custom-scrollbar border border-gray-600 p-2 rounded-md bg-gray-700">
+                        <label class="form-label">Assigned To</label>
+                        <div class="space-y-2 max-h-32 overflow-y-auto custom-scrollbar border p-2 rounded-md">
                             ${app.teamMembers.length > 0 ? app.teamMembers.map(member => {
                                 const isAssigned = task && (
                                     Array.isArray(task.assignedTo)
@@ -2706,12 +2662,12 @@ function showTaskModal(taskId = null) {
                                         : task.assignedTo === member.id // Backwards compatibility for old single string
                                 );
                                 return `
-                                    <label class="flex items-center cursor-pointer text-white">
+                                    <label class="flex items-center cursor-pointer">
                                         <input type="checkbox"
                                                name="assignee"
                                                value="${member.id}"
                                                ${isAssigned ? 'checked' : ''}
-                                               class="mr-2 h-4 w-4 text-blue-500 border-gray-500 rounded focus:ring-blue-500 bg-gray-600">
+                                               class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
                                         <span class="team-badge team-member-${member.colorIndex + 1} text-xs">
                                             ${member.name}
                                         </span>
@@ -2722,14 +2678,14 @@ function showTaskModal(taskId = null) {
                     </div>
                     
                     <div>
-                        <label class="form-label text-gray-300">Priority</label>
-                        <select id="task-priority" class="form-input bg-gray-700 text-white border-gray-600 focus:border-blue-500">
+                        <label class="form-label">Priority</label>
+                        <select id="task-priority" class="form-input">
                             <option value="low" ${task && task.priority === 'low' ? 'selected' : ''}>Low</option>
                             <option value="medium" ${task && task.priority === 'medium' ? 'selected' : ''}>Medium</option>
                             <option value="high" ${task && task.priority === 'high' ? 'selected' : ''}>High</option>
                         </select>
-                         <label class="form-label mt-4 text-gray-300">Phase</label>
-                        <select id="task-phase" class="form-input bg-gray-700 text-white border-gray-600 focus:border-blue-500">
+                         <label class="form-label mt-4">Phase</label>
+                        <select id="task-phase" class="form-input">
                             <option value="planning" ${task && task.phase === 'planning' ? 'selected' : ''}>Planning</option>
                             <option value="design" ${task && task.phase === 'design' ? 'selected' : ''}>Design</option>
                             <option value="development" ${task && task.phase === 'development' ? 'selected' : ''}>Development</option>
@@ -2742,21 +2698,21 @@ function showTaskModal(taskId = null) {
                 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="form-label text-gray-300">Start Time</label>
-                        <input type="datetime-local" id="task-start" class="form-input bg-gray-700 text-white border-gray-600 focus:border-blue-500"
+                        <label class="form-label">Start Time</label>
+                        <input type="datetime-local" id="task-start" class="form-input"
                                value="${task ? formatDateTimeLocal(task.startDate) : ''}" required>
                     </div>
                     
                     <div>
-                        <label class="form-label text-gray-300">End Time</label>
-                        <input type="datetime-local" id="task-end" class="form-input bg-gray-700 text-white border-gray-600 focus:border-blue-500"
+                        <label class="form-label">End Time</label>
+                        <input type="datetime-local" id="task-end" class="form-input"
                                value="${task ? formatDateTimeLocal(task.endDate) : ''}" required>
                     </div>
                 </div>
                 
                 <div>
-                    <label class="form-label text-gray-300">Status</label>
-                    <select id="task-status" class="form-input bg-gray-700 text-white border-gray-600 focus:border-blue-500">
+                    <label class="form-label">Status</label>
+                    <select id="task-status" class="form-input">
                         <option value="Not Started" ${task && task.status === 'Not Started' ? 'selected' : ''}>Not Started</option>
                         <option value="In Progress" ${task && task.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
                         <option value="Completed" ${task && task.status === 'Completed' ? 'selected' : ''}>Completed</option>
@@ -2765,8 +2721,8 @@ function showTaskModal(taskId = null) {
                 </div>
                 
                 <div>
-                    <label class="form-label text-gray-300">Estimated Hours</label>
-                    <input type="number" id="task-estimated-hours" class="form-input bg-gray-700 text-white border-gray-600 focus:border-blue-500" min="0.5" step="0.5"
+                    <label class="form-label">Estimated Hours</label>
+                    <input type="number" id="task-estimated-hours" class="form-input" min="0.5" step="0.5"
                            value="${task ? task.estimatedHours : 1}" required>
                 </div>
 
@@ -2774,17 +2730,17 @@ function showTaskModal(taskId = null) {
                     <div>
                         ${isEditing ? `
                             <button type="button" onclick="deleteTaskAndHideModal('${taskId}')"
-                                    class="text-red-500 hover:text-red-400 px-4 py-2 rounded-md">
+                                    class="text-red-600 hover:text-red-800">
                                 Delete Task
                             </button>
                         ` : ''}
                     </div>
                     <div class="space-x-3">
                         <button type="button" onclick="hideTaskModal()"
-                                class="px-4 py-2 text-gray-300 hover:text-gray-100 bg-gray-700 rounded-md">
+                                class="px-4 py-2 text-gray-600 hover:text-gray-800">
                             Cancel
                         </button>
-                        <button type="submit" class="btn bg-blue-600 hover:bg-blue-700 text-white">
+                        <button type="submit" class="btn btn-primary">
                             ${isEditing ? 'Update Task' : 'Create Task'}
                         </button>
                     </div>
@@ -2794,7 +2750,7 @@ function showTaskModal(taskId = null) {
     `;
     
     // Show modal
-    elements.taskModal.classList.remove('hidden');
+    modal.classList.remove('hidden');
     
     // Add form submit handler
     document.getElementById('task-form').addEventListener('submit', (e) => {
@@ -2893,16 +2849,11 @@ function formatDate(date) {
     return `${day} ${hours}:${minutes}`;
 }
 
-/**
- * Adds hours to a given date and returns a new Date object.
- * @param {Date} date - The original Date object.
- * @param {number} hours - The number of hours to add.
- * @returns {Date} A new Date object with the added hours.
- */
-function addHours(date, hours) {
-    const newDate = new Date(date);
-    newDate.setHours(newDate.getHours() + hours);
-    return newDate;
+// Parse duration (placeholder - `parseInt` is used directly where needed)
+function parseDuration(duration) {
+    // This function is not strictly needed as duration is already parsed as int.
+    // Kept as placeholder if more complex parsing is ever required.
+    return parseInt(duration);
 }
 
 /**
@@ -2947,9 +2898,7 @@ function saveToLocalStorage() {
         hackathonSettings: app.hackathonSettings,
         teamMembers: app.teamMembers,
         allTasks: app.allTasks,
-        projectIdea: app.projectIdea,
-        chatHistory: app.chatHistory,
-        onboardingStep: app.onboardingStep // Save onboarding step to resume flow
+        projectIdea: app.projectIdea
     };
     
     // Dates are stored as ISO strings by JSON.stringify
@@ -2996,16 +2945,11 @@ function loadFromLocalStorage() {
             if (parsed.projectIdea) {
                 app.projectIdea = parsed.projectIdea;
             }
-            if (parsed.chatHistory) {
-                app.chatHistory = parsed.chatHistory;
-            }
-            if (typeof parsed.onboardingStep !== 'undefined') {
-                app.onboardingStep = parsed.onboardingStep;
-            }
             
             // Update UI with loaded data
             if (elements.hackathonName) elements.hackathonName.value = app.hackathonSettings.name || '';
             if (elements.startDate && app.hackathonSettings.startDate) {
+                // Use formatDateTimeLocal for correct display in datetime-local input
                 elements.startDate.value = formatDateTimeLocal(app.hackathonSettings.startDate);
             }
             if (elements.duration) elements.duration.value = app.hackathonSettings.duration || '';
@@ -3013,11 +2957,9 @@ function loadFromLocalStorage() {
             
         } catch (error) {
             console.error('Error loading data from local storage:', error);
-            // Optionally, clear corrupted data and restart onboarding
+            // Optionally, clear corrupted data
             // localStorage.removeItem('hackmanagerData');
             // showMessage('Data Load Error', 'Failed to load saved data. Your data might be corrupted. Application has been reset.', 'alert');
-            // app.onboardingStep = 0; // Force re-onboarding
-            // app.chatHistory = []; // Clear chat history on error
         }
     }
 }
@@ -3030,13 +2972,14 @@ function clearLocalStorage() {
     showMessage('Confirm Clear All Data', 'Are you sure you want to clear ALL data and reset the application? This action cannot be undone.', 'confirm', () => {
         // Clear all stored data
         localStorage.removeItem('hackmanagerData');
+        // Clear all API keys and selected provider/endpoint
         ['groq', 'openai', 'anthropic', 'google', 'cohere', 'other'].forEach(provider => {
             localStorage.removeItem(`${provider}_api_key`);
-            localStorage.removeItem(`${provider}_model`);
+            localStorage.removeItem(`${provider}_model`); // Clear specific model too
             localStorage.removeItem(`${provider}_endpoint`);
         });
-        localStorage.removeItem('ai_provider');
-        localStorage.removeItem('hasSeenOnboarding');
+        localStorage.removeItem('ai_provider'); // General AI provider selection
+        localStorage.removeItem('hasSeenOnboarding'); // Reset onboarding
 
         // Reset application state
         app.currentPage = 'ai-assistant';
@@ -3053,9 +2996,8 @@ function clearLocalStorage() {
         };
         app.projectIdea = '';
         app.selectedMemberId = null;
-        app.chatHistory = [];
-        app.onboardingStep = 0; // Reset onboarding step
-
+        app.chatHistory = []; // Clear chat history too
+        
         // Clear form inputs
         if (elements.hackathonName) elements.hackathonName.value = '';
         if (elements.startDate) elements.startDate.value = '';
@@ -3072,13 +3014,13 @@ function clearLocalStorage() {
         
         // Reset provider selection and hide/show relevant fields
         const providerSelect = document.getElementById('ai-provider');
-        if (providerSelect) providerSelect.value = 'groq';
-        toggleApiKeyInput('groq');
+        if (providerSelect) providerSelect.value = 'groq'; // Default to Groq again
+        toggleApiKeyInput('groq'); // Re-run logic to show/hide sections correctly
         
         // Clear AI response display
         if (elements.aiResponse) {
             elements.aiResponse.innerHTML = '';
-            // elements.aiResponse.classList.add('hidden'); // No longer add hidden here, let dashboard render
+            elements.aiResponse.classList.add('hidden');
         }
 
         // Clear chat history display
@@ -3089,68 +3031,18 @@ function clearLocalStorage() {
         // Update UI components that rely on app state
         renderTeamMembers();
         updateTeamStats();
-        initializeCalendar();
+        initializeCalendar(); // Re-initialize calendar as data is cleared
 
         showMessage('All Data Cleared', 'All application data has been cleared successfully. The application has been reset.', 'alert', () => {
-            startInitialAppFlow(); // Start onboarding again
+            showPage('settings'); // Redirect to settings page after reset
         });
     });
 }
 
-// Global API_KEY and API_URL for Gemini API calls, taken from ai-codeplanner immersive
-// Canvas will automatically provide the API key here for gemini-2.0-flash
-const API_KEY = ""; 
-const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+// ========== Export/Import Functions (Continued from previous snippets) ==========
 
-/**
- * Common function to call the Gemini API.
- * @param {string} prompt - The text prompt for the AI.
- * @param {object|null} outputSchema - Optional JSON schema for structured output.
- * @returns {Promise<string|object|null>} The AI's response text, parsed JSON, or null on error.
- */
-async function callGeminiAPI(prompt, outputSchema = null) {
-    let chatHistory = [];
-    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+// Export data (implementation provided in previous section)
+// function exportData() { ... }
 
-    const payload = { contents: chatHistory };
-
-    // Add response schema if provided for structured output
-    if (outputSchema) {
-        payload.generationConfig = {
-            responseMimeType: "application/json",
-            responseSchema: outputSchema
-        };
-    }
-
-    try {
-        const response = await fetch(`${API_URL}?key=${API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        const result = await response.json();
-        console.log("Gemini API Response:", result);
-
-        if (result.candidates && result.candidates.length > 0 &&
-            result.candidates[0].content && result.candidates[0].content.parts &&
-            result.candidates[0].content.parts.length > 0) {
-            const text = result.candidates[0].content.parts[0].text;
-            if (outputSchema) {
-                try {
-                    return JSON.parse(text); // Parse JSON if schema was requested
-                } catch (e) {
-                    console.error("Failed to parse JSON from AI response:", e, text);
-                    return null; // Or handle as a string if parsing fails
-                }
-            }
-            return text; // Return plain text otherwise
-        } else {
-            console.error("Unexpected API response structure or no content:", result);
-            return null;
-        }
-    } catch (error) {
-        console.error("Error calling Gemini API:", error);
-        throw error; // Re-throw to be caught by calling functions
-    }
-}
+// Import data (implementation provided and refined above in handleImportData)
+// function importData(jsonData) { ... }
