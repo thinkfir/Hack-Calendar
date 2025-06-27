@@ -445,7 +445,7 @@ async function generateTasksWithAI(projectIdea, provider, updateProgress) {
     // For onboarding, we'll assume a default Google Gemini Flash API key (provided by Canvas)
     // The actual API key and provider selection will be managed on the settings page of the dashboard.
     const apiKey = ""; // Canvas will automatically provide this for Google Gemini Flash
-    const selectedModel = 'gemini-2.0-flash'; // Hardcoded for onboarding
+    const selectedModel = 'gemini-2.5-flash'; // Hardcoded for onboarding
     let apiUrl;
     let payload;
     let headers = { 'Content-Type': 'application/json' };
@@ -499,12 +499,10 @@ Allocate time wisely for phases, roughly as percentages of total project hours:
 - Development: ~50% (core features)
 - Integration: ~10% (connecting components)
 - Testing: ~10% (QA, bug fixes)
-- Presentation: ~5% (demo prep)
-
-Return ONLY a JSON array of task objects, formatted exactly as specified, without any additional text or markdown outside the JSON.`;
+- Presentation: ~5% (demo prep)`;
 
     // Determine API URL and payload structure for Google Gemini Flash
-    apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+    apiUrl = 'http://localhost:3001/gemini'; // Proxy through Node server on correct port
     payload = {
         contents: [{
             parts: [{
