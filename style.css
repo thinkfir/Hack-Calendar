@@ -330,6 +330,12 @@ aside.lg\:translate-x-0 {
 }
 
 @media (min-width: 1024px) { /* lg breakpoint */
+    html, body {
+        height: 100%;
+    }
+    #onboarding-container {
+        height: 100%;
+    }
     #onboarding-visual-sidebar {
         flex-direction: column; /* Column on larger screens */
         justify-content: flex-start; /* Align items to start */
@@ -337,8 +343,15 @@ aside.lg\:translate-x-0 {
         padding-bottom: 3rem;
         border-radius: 1.5rem 0 0 1.5rem; /* Rounded only on left side for desktop */
         box-shadow: inset -5px 0 10px rgba(0,0,0,0.2); /* Inner shadow for depth on desktop */
-        width: 25%; /* Take 25% width on large screens */
+        flex-basis: 30%;
+        max-width: 400px;
+        min-width: 220px;
         height: 100%; /* Take full height of parent on desktop */
+        align-items: stretch;
+    }
+    .onboarding-step {
+        flex: 1 1 0%;
+        min-height: 0;
     }
 }
 
@@ -350,14 +363,41 @@ aside.lg\:translate-x-0 {
     flex-direction: column; /* Default for each step (icon above text) */
     cursor: pointer; /* Indicate interactivity */
     padding: 0.5rem; /* Padding for click area */
+    overflow: visible;
 }
 
 @media (min-width: 1024px) { /* lg breakpoint */
+    #onboarding-visual-sidebar {
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: stretch;
+        gap: 2rem;
+        min-width: 0;
+        overflow: visible;
+    }
     .onboarding-step {
         flex-direction: row; /* Icon and text in a row on larger screens */
         text-align: left; /* Align text left on desktop */
         align-items: center; /* Vertically align items */
         padding: 1rem 1.5rem; /* More padding for desktop steps */
+        flex: 0 0 auto;
+        min-height: unset;
+        min-width: 0;
+        width: 100%;
+        overflow: visible;
+    }
+    .onboarding-step-icon {
+        width: 3.5rem;
+        height: 3.5rem;
+        min-width: 3.5rem;
+        min-height: 3.5rem;
+        max-width: 3.5rem;
+        max-height: 3.5rem;
+        border-radius: 50%;
+        align-self: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 }
 
@@ -382,9 +422,12 @@ aside.lg\:translate-x-0 {
     margin-top: 0.75rem; /* mt-3 */
     font-size: 0.875rem; /* text-sm */
     transition: all 0.3s ease-in-out;
-    white-space: nowrap; /* Prevent text wrapping */
-    overflow: hidden;
-    text-overflow: ellipsis; /* Add ellipsis for long text */
+    white-space: normal; /* Allow text wrapping */
+    overflow: visible;
+    text-overflow: unset;
+    display: inline-block;
+    width: 100%;
+    word-break: break-word;
 }
 
 @media (min-width: 1024px) { /* lg breakpoint */
@@ -411,17 +454,17 @@ aside.lg\:translate-x-0 {
 
 /* Vertical line for visual progress in desktop/lg view */
 @media (min-width: 1024px) { /* lg breakpoint */
-    #onboarding-visual-sidebar::before {
+    /* #onboarding-visual-sidebar::before {
         content: '';
         position: absolute;
         left: 50%;
         top: 0;
         bottom: 0;
-        width: 3px; /* Thicker line */
-        background-color: #4b5563; /* gray-600 */
+        width: 3px;
+        background-color: #4b5563;
         transform: translateX(-50%);
         z-index: 0;
-    }
+    } */
 }
 
 /* Onboarding content area */
@@ -499,4 +542,24 @@ aside.lg\:translate-x-0 {
     border-bottom-left-radius: 0;
     border-top-right-radius: 0.5rem; /* rounded-lg */
     border-bottom-right-radius: 0.5rem; /* rounded-lg */
+}
+
+/* Calendar improvements: shorter columns and internal scroll */
+#calendar-scroll-container {
+    max-height: 500px;
+    min-height: 300px;
+    overflow-y: auto;
+}
+
+#calendar-container .calendar-column {
+    min-width: 80px;
+    max-width: 100px;
+    width: 90px;
+}
+
+#calendar-container .calendar-cell {
+    min-height: 8px !important;
+    max-height: 16px !important;
+    height: 12px !important;
+    overflow: hidden;
 }

@@ -59,19 +59,28 @@
 
             // Prepare Gemini API call
             const apiKey = process.env.GEMINI_API_KEY;
-            const model = "gemini-2.5-flash";
+            const model = "gemini-2.0-flash-exp";
             const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
             console.log('Gemini payload prompt:', prompt);
+            
+            // Build generation config from request body
+            const generationConfig = {
+                temperature,
+                maxOutputTokens: max_tokens,
+                responseMimeType: "application/json"
+            };
+            
+            // Include responseSchema if provided
+            if (req.body.generationConfig?.responseSchema) {
+                generationConfig.responseSchema = req.body.generationConfig.responseSchema;
+            }
+            
             const payload = {
                 contents: [{
                     parts: [typeof prompt === "string" ? { text: prompt } : {}]
                 }],
-                generationConfig: {
-                    temperature,
-                    maxOutputTokens: max_tokens,
-                    responseMimeType: "application/json"
-                }
+                generationConfig
             };
 
             const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
@@ -94,25 +103,21 @@
                 return res.status(502).json({ error: 'Invalid JSON from Gemini API', raw: rawText });
             }
 
+            console.log('Parsed API data structure:', JSON.stringify(apiData, null, 2));
+
             if (!apiRes.ok) {
                 const errorMessage = apiData.error?.message || apiData.message || "Gemini API error";
+                console.error('Gemini API error:', errorMessage);
                 return res.status(apiRes.status).json({ error: errorMessage, raw: rawText });
             }
 
             // Extract the text response from Gemini
             const text = apiData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            console.log('Extracted text from API response:', text);
 
-            const formattedResponse = {
-                choices: [{
-                    message: {
-                        content: text
-                    }
-                }]
-            };
             // Send the raw Gemini API response to match frontend expectations
+            console.log('Sending response to frontend:', JSON.stringify(apiData, null, 2));
             return res.json(apiData);
-
-            res.json(formattedResponse);
         } catch (err) {
             console.error('Proxy error:', err);
             res.status(500).json({ error: 'Proxy error', details: err.message });

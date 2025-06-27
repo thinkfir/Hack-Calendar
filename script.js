@@ -757,7 +757,8 @@ async function handleGeneralChatSubmit(event) {
         let actionHandled = false;
 
         try {
-            const parsedResponse = JSON.parse(responseText);
+            // responseText might already be parsed if a schema was provided
+            const parsedResponse = typeof responseText === 'string' ? JSON.parse(responseText) : responseText;
             if (parsedResponse.action === 'update_tasks' && Array.isArray(parsedResponse.tasks)) {
                 parsedResponse.tasks.forEach(taskData => {
                     // Convert assignedTo names from AI response to actual member IDs
@@ -878,8 +879,25 @@ async function callGeminiAPI(prompt, provider, outputSchema = null) {
         }
 
         const data = await response.json();
-        // The server now formats the response to be consistent
-        const aiResponseContent = data.choices[0].message.content;
+        console.log('API response data:', data); // Debug log
+        
+        let aiResponseContent;
+        
+        // Try to extract content from the response - handle both Gemini and other formats
+        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+            // Gemini API format
+            aiResponseContent = data.candidates[0].content.parts[0].text;
+        } else if (data.choices && data.choices[0] && data.choices[0].message) {
+            // OpenAI/alternative format
+            aiResponseContent = data.choices[0].message.content;
+        } else {
+            console.error('Unexpected API response structure:', data);
+            throw new Error('Unexpected API response structure. Please check the console for details.');
+        }
+        
+        if (!aiResponseContent) {
+            throw new Error('No content received from AI API');
+        }
 
         if (outputSchema) {
             try {
@@ -923,12 +941,15 @@ function displayChatHistory(chatType) {
 function addMessageToChatHistory(chatType, role, content, doScroll = true) {
     if (chatType !== 'general' || !elements.dashboardContent) return;
 
+    // Ensure content is a string
+    const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
+
     // Only push if it's not a temporary loading message
-    if (content.indexOf('Thinking and generating tasks...') === -1 && content.indexOf('AI is thinking...') === -1 && content.indexOf('AI is windin\' up!') === -1) {
+    if (contentStr.indexOf('Thinking and generating tasks...') === -1 && contentStr.indexOf('AI is thinking...') === -1 && contentStr.indexOf('AI is windin\' up!') === -1) {
         // Prevent duplicate messages if already in history (e.g., from loading)
         const lastMsg = app.chatHistory.general[app.chatHistory.general.length - 1];
-        if (!lastMsg || !(lastMsg.role === role && lastMsg.content === content)) {
-            app.chatHistory.general.push({ role, content });
+        if (!lastMsg || !(lastMsg.role === role && lastMsg.content === contentStr)) {
+            app.chatHistory.general.push({ role, content: contentStr });
         }
     }
 
@@ -938,7 +959,7 @@ function addMessageToChatHistory(chatType, role, content, doScroll = true) {
     messageDiv.style.maxWidth = '80%';
     messageDiv.dataset.role = role; // Custom attribute to easily identify AI messages
 
-    messageDiv.innerHTML = `<strong>${role === 'user' ? 'You' : 'AI'}:</strong> ${content}`;
+    messageDiv.innerHTML = `<strong>${role === 'user' ? 'You' : 'AI'}:</strong> ${contentStr}`;
     elements.dashboardContent.appendChild(messageDiv);
 
     if (doScroll) {
@@ -1300,7 +1321,7 @@ function renderTimeColumn() {
     const totalHours = app.hackathonSettings.duration;
     
     // Ensure the time column height matches the grid height for synchronized scrolling
-    timeColumn.style.height = `${totalHours * 80}px`; 
+    timeColumn.style.height = `${totalHours * 50}px`;
     
     for (let i = 0; i <= totalHours; i++) {
         const currentHour = new Date(startDate);
@@ -1308,7 +1329,7 @@ function renderTimeColumn() {
         
         const timeSlot = document.createElement('div');
         timeSlot.className = 'absolute w-full text-xs text-gray-400 px-2';
-        timeSlot.style.top = `${i * 80}px`; // Position each hour marker
+        timeSlot.style.top = `${i * 50}px`; // Position each hour marker
         timeSlot.textContent = currentHour.getHours().toString().padStart(2, '0') + ':00';
         
         timeColumn.appendChild(timeSlot);
@@ -1357,13 +1378,13 @@ function renderCalendarGrid() {
     
     const grid = document.createElement('div');
     grid.className = 'relative';
-    grid.style.height = `${app.hackathonSettings.duration * 80}px`; // Height based on total hours
+    grid.style.height = `${app.hackathonSettings.duration * 50}px`; // Height based on total hours
     grid.style.width = `${totalWidth}px`;
     
     for (let h = 0; h <= app.hackathonSettings.duration; h++) {
         const hourLine = document.createElement('div');
         hourLine.className = 'absolute w-full border-b border-gray-700';
-        hourLine.style.top = `${h * 80}px`;
+        hourLine.style.top = `${h * 50}px`;
         grid.appendChild(hourLine);
     }
     
@@ -1395,6 +1416,7 @@ function renderCalendarGrid() {
     }
     
     setupSynchronizedScrolling();
+    
 }
 
 /**
@@ -1455,11 +1477,11 @@ function createTaskElements(task, calendarStart, totalDays, totalWidth) {
 
         // Calculate position (top) based on hours from calendar start
         const minutesFromHackathonStart = (currentSegmentStart.getTime() - calendarStart.getTime()) / (1000 * 60);
-        const topPosition = (minutesFromHackathonStart / 60) * 80; // 80px per hour
+        const topPosition = (minutesFromHackathonStart / 60) * 50; // 32px per hour
 
         // Calculate height based on segment duration
         const durationMinutes = (currentSegmentEnd.getTime() - currentSegmentStart.getTime()) / (1000 * 60);
-        const height = (durationMinutes / 60) * 80;
+        const height = (durationMinutes / 60) * 50;
 
         const taskEl = document.createElement('div');
         
@@ -1518,62 +1540,43 @@ function formatTime(date) {
     return `${hours}:${minutes}`;
 }
 
-/**
- * Sets up synchronized scrolling behavior between calendar header and main content.
- */
 function setupSynchronizedScrolling() {
     const scrollContainer = elements.calendarScrollContainer;
-    const daysHeader = elements.calendarDaysHeader;
-    const timeColumn = elements.timeColumn;
     const scrollbar = elements.calendarScrollbar;
-    
-    if (!scrollContainer || !daysHeader || !scrollbar || !timeColumn) return;
-    
-    let isUpdating = false; // Flag to prevent infinite scroll loops
-    
-    const syncHorizontalScroll = (source) => {
-        if (isUpdating) return;
-        isUpdating = true;
-        
-        const scrollLeft = source.scrollLeft;
-        
-        // Synchronize all horizontally scrollable elements
-        if (source !== scrollContainer) scrollContainer.scrollLeft = scrollLeft;
-        if (source !== daysHeader) daysHeader.scrollLeft = scrollLeft;
-        if (source !== scrollbar) scrollbar.scrollLeft = scrollLeft;
-        
-        setTimeout(() => { isUpdating = false; }, 10); // Debounce
-    };
-    
-    const syncVerticalScroll = () => {
-        if (isUpdating || !timeColumn) return;
-        isUpdating = true;
-        
-        const scrollTop = scrollContainer.scrollTop;
-        // Apply negative translateY to make time column "stick" to the top as content scrolls
-        timeColumn.style.transform = `translateY(${-scrollTop}px)`;
-        
-        setTimeout(() => { isUpdating = false; }, 10); // Debounce
-    };
-    
-    // Add scroll listeners
-    scrollContainer.addEventListener('scroll', () => {
-        syncHorizontalScroll(scrollContainer);
-        syncVerticalScroll();
-    });
-    
-    daysHeader.addEventListener('scroll', () => {
-        syncHorizontalScroll(daysHeader);
-    });
-    
-    scrollbar.addEventListener('scroll', () => {
-        syncHorizontalScroll(scrollbar);
-    });
+    const timeColumn = elements.timeColumn;
+    const daysHeader = elements.calendarDaysHeader;
 
-    // Initial sync on setup
-    syncVerticalScroll();
-    syncHorizontalScroll(scrollContainer);
+    if (!scrollContainer || !scrollbar || !timeColumn || !daysHeader) return;
+
+    let isSyncing = false;
+
+    const syncHorizontalScroll = (source) => (event) => {
+        if (isSyncing) return;
+        isSyncing = true;
+        const target = event.currentTarget === scrollContainer ? scrollbar : scrollContainer;
+        target.scrollLeft = event.currentTarget.scrollLeft;
+        daysHeader.scrollLeft = event.currentTarget.scrollLeft;
+        setTimeout(() => { isSyncing = false; }, 100);
+    };
+
+    const syncVerticalScroll = () => {
+        if (isSyncing) return;
+        isSyncing = true;
+        timeColumn.scrollTop = scrollContainer.scrollTop;
+        setTimeout(() => { isSyncing = false; }, 100);
+    };
+
+    // Clear existing listeners to prevent duplicates
+    scrollContainer.removeEventListener('scroll', syncHorizontalScroll(scrollContainer));
+    scrollbar.removeEventListener('scroll', syncHorizontalScroll(scrollbar));
+    scrollContainer.removeEventListener('scroll', syncVerticalScroll);
+
+    // Add new listeners
+    scrollContainer.addEventListener('scroll', syncHorizontalScroll(scrollContainer));
+    scrollbar.addEventListener('scroll', syncHorizontalScroll(scrollbar));
+    scrollContainer.addEventListener('scroll', syncVerticalScroll);
 }
+
 
 /**
  * Renders the list of team members for the calendar view's sidebar.
