@@ -1,4 +1,8 @@
 /* Custom Styles for a Sleek Dark Theme with Enhanced Visuals */
+/* Using direct CSS properties instead of @apply for CDN compatibility */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 body {
     font-family: 'Inter', sans-serif;
     background-color: #1a202c; /* Equivalent to bg-gray-900 */
@@ -85,6 +89,7 @@ body {
     outline: none;
     position: relative;
     overflow: hidden; /* For ripple effect or other future animations */
+    cursor: pointer; /* Indicate clickable */
 }
 .btn:hover {
     background-image: linear-gradient(to right, #1d4ed8, #2563eb); /* Darker gradient on hover */
@@ -99,6 +104,45 @@ body {
     font-size: 0.875rem; /* text-sm */
     border-radius: 0.5rem; /* rounded-lg */
 }
+
+/* Secondary Button Styles (used for grey buttons in modals/forms) */
+.btn.bg-gray-600 {
+    background-image: none;
+    background-color: #4b5563; /* Tailwind gray-600 */
+}
+
+.btn.bg-gray-600:hover {
+    background-color: #374151; /* Tailwind gray-700 */
+    background-image: none;
+}
+
+/* Red button styles (for delete actions) */
+.btn.bg-red-600 {
+    background-image: none;
+    background-color: #dc2626; /* Tailwind red-600 */
+}
+
+.btn.bg-red-600:hover {
+    background-color: #b91c1c; /* Tailwind red-700 */
+    background-image: none;
+}
+
+/* Purple button styles (for export) */
+.btn.bg-purple-600 {
+    background-image: linear-gradient(to right, #9333ea, #7e22ce); /* Purple gradient */
+}
+.btn.bg-purple-600:hover {
+    background-image: linear-gradient(to right, #7e22ce, #6b21a8);
+}
+
+/* Yellow button styles (for import) */
+.btn.bg-yellow-600 {
+    background-image: linear-gradient(to right, #eab308, #d97706); /* Yellow/orange gradient */
+}
+.btn.bg-yellow-600:hover {
+    background-image: linear-gradient(to right, #d97706, #b45309);
+}
+
 
 /* Custom Scrollbar for better aesthetics in dark theme */
 .custom-scrollbar::-webkit-scrollbar {
@@ -150,14 +194,14 @@ body {
 /* Team Member Badges - Dynamic Colors */
 /* Define a palette of 8 distinct colors */
 :root {
-    --team-color-1: #63b3ed; /* Blue */
-    --team-color-2: #81e6d9; /* Teal */
-    --team-color-3: #f6ad55; /* Orange */
-    --team-color-4: #a78bfa; /* Purple */
-    --team-color-5: #fc8181; /* Red */
-    --team-color-6: #48bb78; /* Green */
-    --team-color-7: #ecc94b; /* Yellow */
-    --team-color-8: #ed8936; /* Dark Orange */
+    --team-color-1: #ef4444; /* Red */
+    --team-color-2: #f97316; /* Orange */
+    --team-color-3: #eab308; /* Yellow */
+    --team-color-4: #22c55e; /* Green */
+    --team-color-5: #0ea5e9; /* Sky Blue */
+    --team-color-6: #6366f1; /* Indigo */
+    --team-color-7: #a855f7; /* Purple */
+    --team-color-8: #ec4899; /* Pink */
 }
 .team-badge {
     display: inline-flex;
@@ -252,7 +296,7 @@ aside.lg\:translate-x-0 {
     z-index: 50; /* Ensure toggle is above overlay */
 }
 
-/* Onboarding Specific Styles */
+/* Onboarding Specific Styles (still relevant for sidebar layout, but actual content is in separate files) */
 #onboarding-container {
     min-height: 80vh; /* Ensure it takes up a good portion of the screen */
     background: linear-gradient(135deg, #1f2937 0%, #111827 100%); /* Subtle gradient background */
@@ -275,6 +319,7 @@ aside.lg\:translate-x-0 {
     background-color: #1a202c; /* Even darker sidebar background */
     border-radius: 1.5rem 1.5rem 0 0; /* Rounded top for mobile */
     box-shadow: inset 0 -5px 10px rgba(0,0,0,0.2); /* Inner shadow for depth on mobile */
+    display: flex; /* Apply flex display */
     flex-direction: row; /* Default to row on small screens */
     justify-content: space-around; /* Distribute items evenly */
     align-items: center;
@@ -316,6 +361,7 @@ aside.lg\:translate-x-0 {
     }
 }
 
+
 .onboarding-step-icon {
     width: 3.5rem; /* w-14 (slightly larger) */
     height: 3.5rem; /* h-14 */
@@ -329,8 +375,7 @@ aside.lg\:translate-x-0 {
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     position: relative; /* For dot animation */
     z-index: 1; /* Ensure icon is above line */
-    background-color: #4b5563; /* Default gray background */
-    color: #e2e8f0; /* Default text color */
+    /* background-color and color set by JS for active/inactive states */
 }
 
 .onboarding-step-text {
@@ -400,15 +445,12 @@ aside.lg\:translate-x-0 {
     }
 }
 
-/* Onboarding sections for dynamic content */
+/* Onboarding sections for dynamic content (though now in separate HTML files) */
 .onboarding-section {
-    /* Removed display: none; here to let Tailwind's 'hidden' class control visibility */
     flex-grow: 1; /* Allow content to fill space */
     animation: fadeInSlideUp 0.6s ease-out forwards; /* Fade in and slide up animation */
-}
-
-.onboarding-section.flex { /* Use .flex because it's added by JS */
-    display: flex; /* Show active one */
+    display: flex; /* Default display for onboarding sections to ensure content fills */
+    flex-direction: column; /* Ensure internal content stacks */
 }
 
 @keyframes fadeInSlideUp {
@@ -438,4 +480,23 @@ aside.lg\:translate-x-0 {
 @keyframes slideInFromSide {
     from { opacity: 0; transform: translateX(-20px); }
     to { opacity: 1; transform: translateX(0); }
+}
+
+/* Multi-day task visual indicators */
+.task-multi-day-start {
+    border-top-left-radius: 0.5rem; /* rounded-lg */
+    border-bottom-left-radius: 0.5rem; /* rounded-lg */
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.task-multi-day-middle {
+    border-radius: 0; /* No rounded corners in middle segments */
+}
+
+.task-multi-day-end {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-top-right-radius: 0.5rem; /* rounded-lg */
+    border-bottom-right-radius: 0.5rem; /* rounded-lg */
 }
