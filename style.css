@@ -207,6 +207,7 @@ body {
     --team-color-6: #6366f1; /* Indigo */
     --team-color-7: #a855f7; /* Purple */
     --team-color-8: #ec4899; /* Pink */
+    --team-color-unassigned: #6b7280; /* Neutral gray for unassigned tasks */
 }
 .team-badge {
     display: inline-flex;
@@ -226,6 +227,7 @@ body {
 .team-member-6 { background-color: var(--team-color-6); }
 .team-member-7 { background-color: var(--team-color-7); }
 .team-member-8 { background-color: var(--team-color-8); }
+.team-member-unassigned { background-color: var(--team-color-unassigned); }
 
 /* Calendar Specific Styles */
 #calendar-main-grid-container {

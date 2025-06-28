@@ -1492,8 +1492,7 @@ function createTaskElements(task, calendarStart, totalDays, totalWidth) {
     const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
     const assignedMembers = assignees.map(id => app.teamMembers.find(m => m.id === id)).filter(m => m);
     
-    // Only render tasks that have at least one assigned member (for visual assignment)
-    if (assignedMembers.length === 0) return elements;
+    // Continue processing both assigned and unassigned tasks
 
     const taskStart = new Date(task.startDate);
     const taskEnd = new Date(task.endDate);
@@ -1544,7 +1543,10 @@ function createTaskElements(task, calendarStart, totalDays, totalWidth) {
         const taskEl = document.createElement('div');
         
         // Apply gradient or solid color based on number of assignees
-        if (assignedMembers.length > 1) {
+        if (assignedMembers.length === 0) {
+            // Unassigned task - use neutral color
+            taskEl.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--team-color-unassigned');
+        } else if (assignedMembers.length > 1) {
             const colors = assignedMembers.map((member, index) => {
                 const color = getComputedStyle(document.documentElement).getPropertyValue(`--team-color-${(member.colorIndex % 8) + 1}`);
                 return `${color} ${index / assignedMembers.length * 100}%`;
@@ -1571,9 +1573,13 @@ function createTaskElements(task, calendarStart, totalDays, totalWidth) {
         }
 
         // Task content for display
+        const memberNames = assignedMembers.length > 0 
+            ? assignedMembers.map(m => m.name).join(', ')
+            : 'Unassigned';
+        
         taskEl.innerHTML = `
             <div class="font-semibold truncate">${task.title}</div>
-            <div class="text-xs opacity-90">${assignedMembers.map(m => m.name).join(', ')}</div>
+            <div class="text-xs opacity-90">${memberNames}</div>
             ${height > 30 ? `<div class="text-xs opacity-75">${formatTime(currentSegmentStart)} - ${formatTime(currentSegmentEnd)}</div>` : ''}
         `;
         
@@ -1583,7 +1589,10 @@ function createTaskElements(task, calendarStart, totalDays, totalWidth) {
             showTaskModal(task.id);
         };
         // Title attribute for hover tooltip
-        taskEl.title = `${task.title}\nAssigned: ${assignedMembers.map(m => m.name).join(', ')}\nDuration: ${task.estimatedHours}h\nStatus: ${task.status}\n${formatFullDate(task.startDate)} - ${formatFullDate(task.endDate)}`;
+        const assignedText = assignedMembers.length > 0 
+            ? assignedMembers.map(m => m.name).join(', ')
+            : 'Unassigned';
+        taskEl.title = `${task.title}\nAssigned: ${assignedText}\nDuration: ${task.estimatedHours}h\nStatus: ${task.status}\n${formatFullDate(task.startDate)} - ${formatFullDate(task.endDate)}`;
         
         elements.push(taskEl);
     }
@@ -1612,8 +1621,7 @@ function createTaskElementsWithOverlapHandling(tasks, calendarStart, totalDays, 
         const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
         const assignedMembers = assignees.map(id => app.teamMembers.find(m => m.id === id)).filter(m => m);
         
-        // Only process tasks with assigned members
-        if (assignedMembers.length === 0) return;
+        // Continue processing both assigned and unassigned tasks
 
         const taskStart = new Date(task.startDate);
         const taskEnd = new Date(task.endDate);
@@ -1705,7 +1713,10 @@ function createTaskElementsWithOverlapHandling(tasks, calendarStart, totalDays, 
             const taskEl = document.createElement('div');
             
             // Apply gradient or solid color based on number of assignees
-            if (assignedMembers.length > 1) {
+            if (assignedMembers.length === 0) {
+                // Unassigned task - use neutral color
+                taskEl.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--team-color-unassigned');
+            } else if (assignedMembers.length > 1) {
                 const colors = assignedMembers.map((member, idx) => {
                     const color = getComputedStyle(document.documentElement).getPropertyValue(`--team-color-${(member.colorIndex % 8) + 1}`);
                     return `${color} ${idx / assignedMembers.length * 100}%`;
@@ -1742,10 +1753,14 @@ function createTaskElementsWithOverlapHandling(tasks, calendarStart, totalDays, 
 
             // Task content - adjust based on available width
             const showDetails = taskWidth > 60; // Only show details if there's enough space
+            const memberNames = assignedMembers.length > 0 
+                ? assignedMembers.map(m => m.name).join(', ')
+                : 'Unassigned';
+            
             taskEl.innerHTML = `
                 <div class="font-semibold truncate" style="font-size: ${taskWidth < 80 ? '10px' : '12px'}">${task.title}</div>
                 ${showDetails ? `
-                    <div class="text-xs opacity-90 truncate">${assignedMembers.map(m => m.name).join(', ')}</div>
+                    <div class="text-xs opacity-90 truncate">${memberNames}</div>
                     ${height > 30 ? `<div class="text-xs opacity-75">${formatTime(currentSegmentStart)} - ${formatTime(currentSegmentEnd)}</div>` : ''}
                 ` : ''}
             `;
@@ -1758,7 +1773,10 @@ function createTaskElementsWithOverlapHandling(tasks, calendarStart, totalDays, 
             
             // Enhanced tooltip for overlapping tasks
             const overlapInfo = overlapCount > 1 ? `\n(${overlapCount} tasks overlap at this time)` : '';
-            taskEl.title = `${task.title}\nAssigned: ${assignedMembers.map(m => m.name).join(', ')}\nDuration: ${task.estimatedHours}h\nStatus: ${task.status}\n${formatFullDate(task.startDate)} - ${formatFullDate(task.endDate)}${overlapInfo}`;
+            const assignedText = assignedMembers.length > 0 
+                ? assignedMembers.map(m => m.name).join(', ')
+                : 'Unassigned';
+            taskEl.title = `${task.title}\nAssigned: ${assignedText}\nDuration: ${task.estimatedHours}h\nStatus: ${task.status}\n${formatFullDate(task.startDate)} - ${formatFullDate(task.endDate)}${overlapInfo}`;
             
             elements.push(taskEl);
         });
