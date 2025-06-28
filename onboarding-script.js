@@ -350,7 +350,26 @@ async function handleOnboardingChatAISubmit(event) {
         
     } catch (error) {
         console.error('Error generating tasks during onboarding:', error);
-        addMessageToChatHistory('onboardingAI', 'ai', `Oops! I encountered an error: ${error.message}. Please check your API key in Settings (if any, in the future dashboard) or try again.`);
+        
+        // Replace last AI message or add a new one with error details
+        const lastMessageDiv = elements.onboardingChatHistoryAI.lastChild;
+        let errorMessage = `Oops! I encountered an error: ${error.message}`;
+        
+        // Provide more specific error messages based on error type
+        if (error.message.includes('API request failed')) {
+            errorMessage = `There was an issue with the AI service. Please check your internet connection and try again.`;
+        } else if (error.message.includes('not valid JSON')) {
+            errorMessage = `The AI response wasn't in the expected format. Please try rephrasing your project idea.`;
+        } else if (error.message.includes('Unexpected API response structure')) {
+            errorMessage = `The AI service returned an unexpected response. Please try again in a moment.`;
+        }
+        
+        if (lastMessageDiv && lastMessageDiv.dataset.role === 'ai') {
+            lastMessageDiv.innerHTML = `<strong>AI:</strong> ${errorMessage}`;
+        } else {
+            addMessageToChatHistory('onboardingAI', 'ai', errorMessage);
+        }
+        
         scrollChatToBottom(elements.onboardingChatHistoryAI);
     } finally {
         elements.onboardingChatInputAI.disabled = false; // Re-enable input
@@ -445,7 +464,7 @@ async function generateTasksWithAI(projectIdea, provider, updateProgress) {
     // For onboarding, we'll assume a default Google Gemini Flash API key (provided by Canvas)
     // The actual API key and provider selection will be managed on the settings page of the dashboard.
     const apiKey = ""; // Canvas will automatically provide this for Google Gemini Flash
-    const selectedModel = 'gemini-2.0-flash'; // Hardcoded for onboarding
+    const selectedModel = 'gemini-2.0-flash-exp'; // Updated to use 2.0 Flash instead of 2.5 Flash
     let apiUrl;
     let payload;
     let headers = { 'Content-Type': 'application/json' };
@@ -499,12 +518,10 @@ Allocate time wisely for phases, roughly as percentages of total project hours:
 - Development: ~50% (core features)
 - Integration: ~10% (connecting components)
 - Testing: ~10% (QA, bug fixes)
-- Presentation: ~5% (demo prep)
-
-Return ONLY a JSON array of task objects, formatted exactly as specified, without any additional text or markdown outside the JSON.`;
+- Presentation: ~5% (demo prep)`;
 
     // Determine API URL and payload structure for Google Gemini Flash
-    apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+    apiUrl = 'http://localhost:3001/gemini'; // Proxy through Node server on correct port
     payload = {
         contents: [{
             parts: [{
@@ -537,20 +554,51 @@ Return ONLY a JSON array of task objects, formatted exactly as specified, withou
             
     try {
         updateProgress(20, 'Sending request to AI...');
+        
+        console.log('Making request to:', apiUrl);
+        console.log('Request payload:', JSON.stringify(payload, null, 2));
+        
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify(payload)
         });
 
+        console.log('Response received. Status:', response.status);
+        console.log('Response headers:', response.headers);
+
         if (!response.ok) {
-            const errorData = await response.json();
-            const errorMessage = errorData.error?.message || errorData.message || JSON.stringify(errorData);
+            const errorText = await response.text();
+            console.error('Response error text:', errorText);
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch (e) {
+                errorData = { message: errorText };
+            }
+            const errorMessage = errorData.error?.message || errorData.message || `HTTP ${response.status}`;
             throw new Error(`API request failed: ${errorMessage}`);
         }
 
         const data = await response.json();
-        let aiResponseContent = data.candidates[0].content.parts[0].text;
+        console.log('Gemini API response:', data); // Debug log
+        
+        let aiResponseContent;
+        
+        // Try to extract content from the response
+        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+            aiResponseContent = data.candidates[0].content.parts[0].text;
+        } else if (data.choices && data.choices[0] && data.choices[0].message) {
+            // Alternative response format
+            aiResponseContent = data.choices[0].message.content;
+        } else {
+            console.error('Unexpected API response structure:', data);
+            throw new Error('Unexpected API response structure. Please check the console for details.');
+        }
+        
+        if (!aiResponseContent) {
+            throw new Error('No content received from AI API');
+        }
         
         let tasks;
         try {
