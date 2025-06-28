@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar Test - Unassigned Tasks</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { margin: 20px; background: #1a202c; color: white; font-family: -apple-system, sans-serif; }
+        .test-container { max-width: 1200px; margin: 0 auto; }
+        .test-section { margin-bottom: 40px; padding: 20px; background: #2d3748; border-radius: 8px; }
+        .calendar-container { position: relative; height: 400px; overflow: auto; background: #374151; border-radius: 4px; }
+        .task-count { padding: 10px; background: #4a5568; border-radius: 4px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Calendar Test - Unassigned Tasks</h1>
+        
+        <div class="test-section">
+            <h2>Test Summary</h2>
+            <div id="test-summary" class="task-count">
+                Initializing test...
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Calendar View</h2>
+            <div id="calendar-container" class="calendar-container">
+                <div id="calendar-grid" style="position: relative; min-height: 100%; background: linear-gradient(to bottom, transparent 49px, #4a5568 49px, #4a5568 50px, transparent 50px); background-size: 100% 50px;">
+                    <!-- Tasks will be rendered here -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Task List</h2>
+            <div id="task-list">
+                <!-- Task details will be shown here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Minimal script.js functions needed for testing
+        
+        // Define the app object
+        const app = {
+            currentPage: 'calendar',
+            hackathonSettings: {
+                name: 'Test Hackathon',
+                startDate: new Date('2025-06-28T10:00:00'),
+                duration: 48
+            },
+            teamMembers: [
+                { id: 'member1', name: 'Alice', skills: ['Frontend'], colorIndex: 0 },
+                { id: 'member2', name: 'Bob', skills: ['Backend'], colorIndex: 1 }
+            ],
+            allTasks: [
+                {
+                    id: 'task1',
+                    title: 'Assigned Task',
+                    description: 'Task with assignment',
+                    startDate: '2025-06-28T10:00:00',
+                    endDate: '2025-06-28T12:00:00',
+                    assignedTo: ['member1'],
+                    estimatedHours: 2,
+                    phase: 'planning',
+                    priority: 'high',
+                    status: 'todo',
+                    dependencies: []
+                },
+                {
+                    id: 'task2',
+                    title: 'Unassigned Task 1',
+                    description: 'Task without assignment',
+                    startDate: '2025-06-28T14:00:00',
+                    endDate: '2025-06-28T16:00:00',
+                    assignedTo: [],
+                    estimatedHours: 2,
+                    phase: 'planning',
+                    priority: 'medium',
+                    status: 'todo',
+                    dependencies: []
+                },
+                {
+                    id: 'task3',
+                    title: 'Multi-assigned Task',
+                    description: 'Task with multiple assignments',
+                    startDate: '2025-06-28T16:00:00',
+                    endDate: '2025-06-28T18:00:00',
+                    assignedTo: ['member1', 'member2'],
+                    estimatedHours: 2,
+                    phase: 'development',
+                    priority: 'high',
+                    status: 'todo',
+                    dependencies: []
+                },
+                {
+                    id: 'task4',
+                    title: 'Unassigned Task 2',
+                    description: 'Another task without assignment',
+                    startDate: '2025-06-29T10:00:00',
+                    endDate: '2025-06-29T12:00:00',
+                    assignedTo: [],
+                    estimatedHours: 2,
+                    phase: 'testing',
+                    priority: 'low',
+                    status: 'todo',
+                    dependencies: []
+                }
+            ]
+        };
+        
+        // Make app global
+        window.app = app;
+        
+        // Helper functions
+        function formatFullDate(date) {
+            return new Date(date).toLocaleString();
+        }
+        
+        function formatTime(date) {
+            const d = new Date(date);
+            return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+        }
+        
+        function calculateEndDate(startDate, durationHours) {
+            const end = new Date(startDate);
+            end.setHours(end.getHours() + durationHours);
+            return end;
+        }
+        
+        function showTaskModal(taskId) {
+            console.log('Task modal opened for:', taskId);
+        }
+        // Initialize test
+        console.log('Starting calendar test for unassigned tasks...');
+        
+        // Set up test data
+        const app = {
+            currentPage: 'calendar',
+            hackathonSettings: {
+                name: 'Test Hackathon',
+                startDate: new Date('2025-06-28T10:00:00'),
+                duration: 48
+            },
+            teamMembers: [
+                { id: 'member1', name: 'Alice', skills: ['Frontend'], colorIndex: 0 },
+                { id: 'member2', name: 'Bob', skills: ['Backend'], colorIndex: 1 }
+            ],
+            allTasks: [
+                {
+                    id: 'task1',
+                    title: 'Assigned Task',
+                    description: 'Task with assignment',
+                    startDate: '2025-06-28T10:00:00',
+                    endDate: '2025-06-28T12:00:00',
+                    assignedTo: ['member1'],
+                    estimatedHours: 2,
+                    phase: 'planning',
+                    priority: 'high',
+                    status: 'todo',
+                    dependencies: []
+                },
+                {
+                    id: 'task2',
+                    title: 'Unassigned Task 1',
+                    description: 'Task without assignment',
+                    startDate: '2025-06-28T14:00:00',
+                    endDate: '2025-06-28T16:00:00',
+                    assignedTo: [],
+                    estimatedHours: 2,
+                    phase: 'planning',
+                    priority: 'medium',
+                    status: 'todo',
+                    dependencies: []
+                },
+                {
+                    id: 'task3',
+                    title: 'Multi-assigned Task',
+                    description: 'Task with multiple assignments',
+                    startDate: '2025-06-28T16:00:00',
+                    endDate: '2025-06-28T18:00:00',
+                    assignedTo: ['member1', 'member2'],
+                    estimatedHours: 2,
+                    phase: 'development',
+                    priority: 'high',
+                    status: 'todo',
+                    dependencies: []
+                },
+                {
+                    id: 'task4',
+                    title: 'Unassigned Task 2',
+                    description: 'Another task without assignment',
+                    startDate: '2025-06-29T10:00:00',
+                    endDate: '2025-06-29T12:00:00',
+                    assignedTo: [],
+                    estimatedHours: 2,
+                    phase: 'testing',
+                    priority: 'low',
+                    status: 'todo',
+                    dependencies: []
+                }
+            ]
+        };
+        
+        // Make app global for script.js functions
+        window.app = app;
+        
+        // Test the createTaskElements function
+        function runTest() {
+            try {
+                const calendarStart = app.hackathonSettings.startDate;
+                const totalDays = 2;
+                const totalWidth = 800;
+                
+                const summary = document.getElementById('test-summary');
+                const calendarGrid = document.getElementById('calendar-grid');
+                const taskList = document.getElementById('task-list');
+                
+                // Count tasks by assignment status
+                const assignedTasks = app.allTasks.filter(t => t.assignedTo && t.assignedTo.length > 0);
+                const unassignedTasks = app.allTasks.filter(t => !t.assignedTo || t.assignedTo.length === 0);
+                
+                summary.innerHTML = `
+                    <strong>Test Results:</strong><br>
+                    Total Tasks: ${app.allTasks.length}<br>
+                    Assigned Tasks: ${assignedTasks.length}<br>
+                    Unassigned Tasks: ${unassignedTasks.length}
+                `;
+                
+                // Test both rendering functions
+                console.log('Testing createTaskElements...');
+                let renderedElements = [];
+                
+                app.allTasks.forEach(task => {
+                    const elements = createTaskElements(task, calendarStart, totalDays, totalWidth);
+                    renderedElements = renderedElements.concat(elements);
+                });
+                
+                console.log('Testing createTaskElementsWithOverlapHandling...');
+                const elementsWithOverlap = createTaskElementsWithOverlapHandling(app.allTasks, calendarStart, totalDays, totalWidth);
+                
+                // Clear calendar and add rendered elements
+                calendarGrid.innerHTML = '';
+                elementsWithOverlap.forEach(el => calendarGrid.appendChild(el));
+                
+                // Show task list
+                let taskListHTML = '<h3>Rendered Tasks:</h3>';
+                app.allTasks.forEach(task => {
+                    const assignedText = task.assignedTo && task.assignedTo.length > 0 
+                        ? task.assignedTo.map(id => app.teamMembers.find(m => m.id === id)?.name || id).join(', ')
+                        : 'Unassigned';
+                    
+                    taskListHTML += `
+                        <div style="padding: 10px; margin: 5px 0; background: #4a5568; border-radius: 4px;">
+                            <strong>${task.title}</strong><br>
+                            <small>Assigned: ${assignedText} | ${task.startDate} - ${task.endDate}</small>
+                        </div>
+                    `;
+                });
+                taskList.innerHTML = taskListHTML;
+                
+                // Update summary with render results
+                summary.innerHTML += `<br><br><strong>Rendering Results:</strong><br>
+                    Elements Rendered: ${elementsWithOverlap.length}<br>
+                    Success: ${elementsWithOverlap.length >= app.allTasks.length ? '✅' : '❌'}`;
+                
+                console.log('Test completed. Rendered', elementsWithOverlap.length, 'task elements for', app.allTasks.length, 'tasks');
+                
+            } catch (error) {
+                console.error('Test failed:', error);
+                document.getElementById('test-summary').innerHTML = `<strong style="color: red;">Test Failed:</strong><br>${error.message}`;
+            }
+        }
+        
+        // Define required helper functions if they don't exist
+        if (typeof formatFullDate === 'undefined') {
+            window.formatFullDate = function(date) {
+                return new Date(date).toLocaleString();
+            };
+        }
+        if (typeof formatTime === 'undefined') {
+            window.formatTime = function(date) {
+                const d = new Date(date);
+                return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+            };
+        }
+        if (typeof calculateEndDate === 'undefined') {
+            window.calculateEndDate = function(startDate, durationHours) {
+                const end = new Date(startDate);
+                end.setHours(end.getHours() + durationHours);
+                return end;
+            };
+        }
+        if (typeof showTaskModal === 'undefined') {
+            window.showTaskModal = function(taskId) {
+                console.log('Task modal opened for:', taskId);
+            };
+        }
+        
+        // Run test after a short delay to ensure everything is loaded
+        setTimeout(runTest, 100);
+    </script>
+</body>
+</html>
