@@ -123,6 +123,14 @@ function showPage(pageId) {
         activeNavLink.classList.add('active');
     }
 
+    // Handle dashboard-specific overflow behavior
+    const mainElement = document.querySelector('main');
+    if (pageId === 'dashboard') {
+        mainElement.classList.add('dashboard-active');
+    } else {
+        mainElement.classList.remove('dashboard-active');
+    }
+
     // Hide mobile sidebar and overlay if active
     elements.mainSidebar.classList.add('-translate-x-full');
     elements.sidebarOverlay.classList.add('hidden');
@@ -253,6 +261,13 @@ function setupEventListeners() {
     if (elements.apiEndpointInput) {
         elements.apiEndpointInput.addEventListener('input', (e) => {
             localStorage.setItem('other_endpoint', e.target.value);
+        });
+    }
+
+    // Calendar scroll synchronization
+    if (elements.calendarScrollContainer && elements.timeColumn) {
+        elements.calendarScrollContainer.addEventListener('scroll', () => {
+            elements.timeColumn.scrollTop = elements.calendarScrollContainer.scrollTop;
         });
     }
 }
@@ -695,12 +710,21 @@ async function handleGeneralChatSubmit(event) {
         const selectedProvider = elements.aiProviderSelect.value;
         const projectIdeaContext = app.projectIdea || 'No project idea provided yet.';
 
+        const hackathonStart = app.hackathonSettings.startDate ? new Date(app.hackathonSettings.startDate) : null;
+        const hackathonEnd = hackathonStart && app.hackathonSettings.duration ? calculateEndDate(hackathonStart, app.hackathonSettings.duration) : null;
+        const timeframeInfo = hackathonStart && hackathonEnd ? 
+            `Hackathon Timeframe: ${hackathonStart.toISOString()} to ${hackathonEnd.toISOString()} (${app.hackathonSettings.duration} hours total)` : 
+            'No hackathon timeframe configured';
+
         const prompt = `You are a hackathon project manager AI. Based on the current project idea "${projectIdeaContext}", and the user's request, provide helpful advice or perform requested actions.
         
+        ${timeframeInfo}
         Current Team Members: ${app.teamMembers.map(m => m.name).join(', ') || 'None'}
         Current Tasks: ${app.allTasks.map(t => `${t.title} (Status: ${t.status}, Assigned: ${t.assignedTo.map(id => app.teamMembers.find(tm => tm.id === id)?.name || 'Unknown').join(', ')})`).join('; ') || 'None'}
         
         User Request: "${userMessage}"
+        
+        IMPORTANT: When creating new tasks, ensure ALL task start and end dates fall within the hackathon timeframe (${hackathonStart ? hackathonStart.toISOString() : 'NOT SET'} to ${hackathonEnd ? hackathonEnd.toISOString() : 'NOT SET'}). Do not create tasks that extend beyond the hackathon duration.
         
         If the user asks for new tasks or to modify existing tasks, generate JSON for tasks following this schema:
         {
@@ -714,7 +738,9 @@ async function handleGeneralChatSubmit(event) {
                     "estimatedHours": "number",
                     "priority": "high|medium|low",
                     "assignedTo": ["member_id1", "member_id2"], // Array of member IDs (use member names for AI input, convert to IDs after response)
-                    "status": "Not Started|In Progress|Completed|Blocked"
+                    "status": "Not Started|In Progress|Completed|Blocked",
+                    "startDate": "ISO date string (YYYY-MM-DDTHH:mm:ss.sssZ) - must be within hackathon timeframe",
+                    "endDate": "ISO date string (YYYY-MM-DDTHH:mm:ss.sssZ) - must be within hackathon timeframe"
                 }
             ]
         }
@@ -741,10 +767,12 @@ async function handleGeneralChatSubmit(event) {
                                 type: "ARRAY",
                                 items: { type: "STRING" }
                             },
-                            status: { type: "STRING", enum: ["Not Started", "In Progress", "Completed", "Blocked"] }
+                            status: { type: "STRING", enum: ["Not Started", "In Progress", "Completed", "Blocked"] },
+                            startDate: { type: "STRING" },
+                            endDate: { type: "STRING" }
                         },
                         propertyOrdering: [
-                            "id", "title", "description", "phase", "estimatedHours", "priority", "assignedTo", "status"
+                            "id", "title", "description", "phase", "estimatedHours", "priority", "assignedTo", "status", "startDate", "endDate"
                         ]
                     }
                 }
@@ -771,14 +799,47 @@ async function handleGeneralChatSubmit(event) {
                     
                     const taskToUpdate = { ...taskData, assignedTo: assignedToIds };
 
+                    // Validate and adjust dates to ensure they're within hackathon timeframe
+                    if (hackathonStart && hackathonEnd) {
+                        // Parse dates if they're strings
+                        let taskStart = taskToUpdate.startDate ? new Date(taskToUpdate.startDate) : null;
+                        let taskEnd = taskToUpdate.endDate ? new Date(taskToUpdate.endDate) : null;
+                        
+                        // Validate and clamp start date
+                        if (!taskStart || taskStart < hackathonStart || taskStart > hackathonEnd) {
+                            taskStart = new Date(hackathonStart);
+                        }
+                        
+                        // Validate and clamp end date
+                        if (!taskEnd) {
+                            taskEnd = addHours(taskStart, taskToUpdate.estimatedHours || 1);
+                        }
+                        if (taskEnd > hackathonEnd) {
+                            taskEnd = new Date(hackathonEnd);
+                            // Adjust start date if necessary to fit duration
+                            const desiredDuration = (taskToUpdate.estimatedHours || 1) * 60 * 60 * 1000; // in milliseconds
+                            const adjustedStart = new Date(taskEnd.getTime() - desiredDuration);
+                            if (adjustedStart >= hackathonStart) {
+                                taskStart = adjustedStart;
+                            }
+                        }
+                        if (taskEnd < taskStart) {
+                            taskEnd = addHours(taskStart, 1); // Minimum 1 hour task
+                        }
+                        
+                        taskToUpdate.startDate = taskStart;
+                        taskToUpdate.endDate = taskEnd;
+                    } else {
+                        // Fallback if no hackathon timeframe is set
+                        if (!taskToUpdate.startDate) taskToUpdate.startDate = new Date();
+                        if (!taskToUpdate.endDate) taskToUpdate.endDate = addHours(taskToUpdate.startDate, taskToUpdate.estimatedHours || 1);
+                    }
+
                     const existingTask = app.allTasks.find(t => t.id === taskData.id);
                     if (existingTask) {
                         updateTask(taskToUpdate.id, taskToUpdate);
                         aiContent = `Updated task: "${taskToUpdate.title}".`;
                     } else {
-                        // Ensure new tasks have default dates if not provided by AI
-                        if (!taskToUpdate.startDate) taskToUpdate.startDate = new Date();
-                        if (!taskToUpdate.endDate) taskToUpdate.endDate = addHours(taskToUpdate.startDate, taskToUpdate.estimatedHours || 1);
                         createTask(taskToUpdate);
                         aiContent = `Added new task: "${taskToUpdate.title}".`;
                     }
@@ -1158,8 +1219,6 @@ function handleImportData(event) {
 }
 
 
-// ========== Task Management Functions ==========
-
 /**
  * Creates a new task and adds it to the application state.
  * @param {object} taskData - Object containing task details.
@@ -1316,21 +1375,17 @@ function renderTimeColumn() {
     
     timeColumn.innerHTML = '';
     
-    // Calculate total hours and create time slots
-    const startDate = new Date(app.hackathonSettings.startDate);
-    const totalHours = app.hackathonSettings.duration;
+    // Show 24 hours of the day (0-23) instead of absolute hackathon hours
+    const totalHours = 24;
     
     // Ensure the time column height matches the grid height for synchronized scrolling
     timeColumn.style.height = `${totalHours * 50}px`;
     
-    for (let i = 0; i <= totalHours; i++) {
-        const currentHour = new Date(startDate);
-        currentHour.setHours(currentHour.getHours() + i);
-        
+    for (let hour = 0; hour < totalHours; hour++) {
         const timeSlot = document.createElement('div');
         timeSlot.className = 'absolute w-full text-xs text-gray-400 px-2';
-        timeSlot.style.top = `${i * 50}px`; // Position each hour marker
-        timeSlot.textContent = currentHour.getHours().toString().padStart(2, '0') + ':00';
+        timeSlot.style.top = `${hour * 50}px`; // Position each hour marker
+        timeSlot.textContent = hour.toString().padStart(2, '0') + ':00';
         
         timeColumn.appendChild(timeSlot);
     }
@@ -1369,7 +1424,9 @@ function renderCalendarGrid() {
         
         const dayHeader = document.createElement('div');
         dayHeader.className = 'flex-shrink-0 text-center text-sm font-medium text-gray-300 py-3 border-r border-gray-700';
-        dayHeader.style.width = `${totalWidth / days}px`;
+        dayHeader.style.width = `${180 - 4}px`; // Match column width (dayWidth - 4)
+        dayHeader.style.marginLeft = '2px';
+        dayHeader.style.marginRight = '2px';
         dayHeader.textContent = dayDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         
         headerContainer.appendChild(dayHeader);
@@ -1378,10 +1435,11 @@ function renderCalendarGrid() {
     
     const grid = document.createElement('div');
     grid.className = 'relative';
-    grid.style.height = `${app.hackathonSettings.duration * 50}px`; // Height based on total hours
-    grid.style.width = `${totalWidth}px`;
+    grid.style.height = `${24 * 50}px`; // Set explicit height for 24 hours
+    grid.style.width = '100%'; // Remove fixed width to prevent horizontal scroll
     
-    for (let h = 0; h <= app.hackathonSettings.duration; h++) {
+    // Create horizontal lines for 24 hours (0-23)
+    for (let h = 0; h < 24; h++) {
         const hourLine = document.createElement('div');
         hourLine.className = 'absolute w-full border-b border-gray-700';
         hourLine.style.top = `${h * 50}px`;
@@ -1394,7 +1452,9 @@ function renderCalendarGrid() {
     for (let d = 0; d < days; d++) {
         const dayColumn = document.createElement('div');
         dayColumn.className = 'border-r border-gray-700';
-        dayColumn.style.width = `${totalWidth / days}px`;
+        dayColumn.style.width = `${180 - 4}px`; // Match task width (dayWidth - 4)
+        dayColumn.style.marginLeft = '2px'; // Align with task left padding
+        dayColumn.style.marginRight = '2px'; // Align with task right padding
         dayColumn.onclick = () => {
             const clickedDate = new Date(startDate);
             clickedDate.setDate(clickedDate.getDate() + d);
@@ -1404,18 +1464,16 @@ function renderCalendarGrid() {
     }
     grid.appendChild(dayColumns);
     
-    app.allTasks.forEach(task => {
-        const taskElements = createTaskElements(task, startDate, days, totalWidth);
-        taskElements.forEach(el => grid.appendChild(el));
-    });
+    // Calculate task overlaps and create elements with proper positioning
+    const taskElementsWithOverlap = createTaskElementsWithOverlapHandling(app.allTasks, startDate, days, totalWidth);
+    taskElementsWithOverlap.forEach(el => grid.appendChild(el));
     
     container.appendChild(grid);
     
     if (scrollbarContent) {
-        scrollbarContent.style.width = `${totalWidth}px`;
+        scrollbarContent.style.width = '100%'; // Remove fixed width for scrollbar content
     }
     
-    setupSynchronizedScrolling();
     
 }
 
@@ -1459,7 +1517,7 @@ function createTaskElements(task, calendarStart, totalDays, totalWidth) {
     const startDayIndex = Math.floor((effectiveRenderStart.getTime() - calendarStart.getTime()) / (1000 * 60 * 60 * 24));
     const endDayIndex = Math.floor((effectiveRenderEnd.getTime() - calendarStart.getTime()) / (1000 * 60 * 60 * 24));
 
-    const dayWidth = totalWidth / totalDays;
+    const dayWidth = 180; // Match the fixed dayWidth in renderCalendarGrid
 
     for (let day = startDayIndex; day <= endDayIndex && day < totalDays; day++) {
         // Calculate the start and end time for the current day's segment of the task
@@ -1475,9 +1533,9 @@ function createTaskElements(task, calendarStart, totalDays, totalWidth) {
 
         if (currentSegmentStart >= currentSegmentEnd) continue; // Skip if this segment is invalid
 
-        // Calculate position (top) based on hours from calendar start
-        const minutesFromHackathonStart = (currentSegmentStart.getTime() - calendarStart.getTime()) / (1000 * 60);
-        const topPosition = (minutesFromHackathonStart / 60) * 50; // 32px per hour
+        // Calculate position (top) based on time of day, not absolute time from hackathon start
+        const hourOfDay = currentSegmentStart.getHours() + (currentSegmentStart.getMinutes() / 60);
+        const topPosition = hourOfDay * 50; // 50px per hour
 
         // Calculate height based on segment duration
         const durationMinutes = (currentSegmentEnd.getTime() - currentSegmentStart.getTime()) / (1000 * 60);
@@ -1533,6 +1591,182 @@ function createTaskElements(task, calendarStart, totalDays, totalWidth) {
     return elements;
 }
 
+/**
+ * Creates task elements with overlap detection and horizontal width splitting.
+ * When tasks overlap in the same time slot, their widths are split to show all tasks.
+ * @param {Array<object>} tasks - Array of all tasks.
+ * @param {Date} calendarStart - The start date of the calendar view.
+ * @param {number} totalDays - The total number of days in the calendar view.
+ * @param {number} totalWidth - The total pixel width of the calendar grid.
+ * @returns {Array<HTMLElement>} An array of task DIV elements with overlap handling.
+ */
+function createTaskElementsWithOverlapHandling(tasks, calendarStart, totalDays, totalWidth) {
+    const elements = [];
+    const dayWidth = 180;
+    
+    // Group tasks by day and time slot to detect overlaps
+    const tasksByDaySlot = new Map(); // Key: "dayIndex_timeSlot", Value: array of tasks
+    
+    // First pass: categorize all tasks by their day and time slots
+    tasks.forEach(task => {
+        const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+        const assignedMembers = assignees.map(id => app.teamMembers.find(m => m.id === id)).filter(m => m);
+        
+        // Only process tasks with assigned members
+        if (assignedMembers.length === 0) return;
+
+        const taskStart = new Date(task.startDate);
+        const taskEnd = new Date(task.endDate);
+
+        // Basic validation for dates
+        if (isNaN(taskStart.getTime()) || isNaN(taskEnd.getTime())) {
+            console.warn('Invalid date for task:', task.title, task.startDate, task.endDate);
+            return;
+        }
+        
+        const calendarEnd = calculateEndDate(calendarStart, app.hackathonSettings.duration);
+        
+        // Skip tasks completely outside the calendar range
+        if (taskEnd < calendarStart || taskStart > calendarEnd) return;
+        
+        // Determine the actual start and end for rendering within the calendar bounds
+        const effectiveRenderStart = new Date(Math.max(taskStart.getTime(), calendarStart.getTime()));
+        const effectiveRenderEnd = new Date(Math.min(taskEnd.getTime(), calendarEnd.getTime()));
+        
+        // Calculate the start and end day index within the calendar range
+        const startDayIndex = Math.floor((effectiveRenderStart.getTime() - calendarStart.getTime()) / (1000 * 60 * 60 * 24));
+        const endDayIndex = Math.floor((effectiveRenderEnd.getTime() - calendarStart.getTime()) / (1000 * 60 * 60 * 24));
+
+        for (let day = startDayIndex; day <= endDayIndex && day < totalDays; day++) {
+            // Calculate the start and end time for the current day's segment of the task
+            const segmentDayStart = new Date(calendarStart);
+            segmentDayStart.setDate(segmentDayStart.getDate() + day);
+            segmentDayStart.setHours(0, 0, 0, 0); // Start of the current calendar day
+
+            const segmentDayEnd = new Date(segmentDayStart);
+            segmentDayEnd.setDate(segmentDayEnd.getDate() + 1); // End of the current calendar day (start of next)
+
+            const currentSegmentStart = new Date(Math.max(effectiveRenderStart.getTime(), segmentDayStart.getTime()));
+            const currentSegmentEnd = new Date(Math.min(effectiveRenderEnd.getTime(), segmentDayEnd.getTime()));
+
+            if (currentSegmentStart >= currentSegmentEnd) continue; // Skip if this segment is invalid
+
+            // Calculate time slot (rounded to 30-minute intervals for overlap detection)
+            const startHour = currentSegmentStart.getHours();
+            const startMinute = Math.floor(currentSegmentStart.getMinutes() / 30) * 30;
+            const endHour = currentSegmentEnd.getHours();
+            const endMinute = Math.ceil(currentSegmentEnd.getMinutes() / 30) * 30;
+            
+            // Create time slots this task occupies
+            const startSlot = startHour * 2 + (startMinute / 30);
+            const endSlot = endHour * 2 + (endMinute / 30);
+            
+            for (let slot = startSlot; slot < endSlot; slot++) {
+                const slotKey = `${day}_${slot}`;
+                if (!tasksByDaySlot.has(slotKey)) {
+                    tasksByDaySlot.set(slotKey, []);
+                }
+                
+                // Store task with its segment info
+                tasksByDaySlot.get(slotKey).push({
+                    task,
+                    day,
+                    currentSegmentStart,
+                    currentSegmentEnd,
+                    assignedMembers
+                });
+            }
+        }
+    });
+    
+    // Second pass: create task elements with overlap positioning
+    const processedTasks = new Set(); // Track processed task segments to avoid duplicates
+    
+    tasksByDaySlot.forEach((tasksInSlot, slotKey) => {
+        const [dayIndex, timeSlot] = slotKey.split('_').map(Number);
+        const overlapCount = tasksInSlot.length;
+        
+        tasksInSlot.forEach((taskInfo, index) => {
+            const { task, day, currentSegmentStart, currentSegmentEnd, assignedMembers } = taskInfo;
+            
+            // Create unique key for this task segment
+            const segmentKey = `${task.id}_${day}_${currentSegmentStart.getTime()}_${currentSegmentEnd.getTime()}`;
+            if (processedTasks.has(segmentKey)) return;
+            processedTasks.add(segmentKey);
+            
+            // Calculate position based on time of day
+            const hourOfDay = currentSegmentStart.getHours() + (currentSegmentStart.getMinutes() / 60);
+            const topPosition = hourOfDay * 50;
+
+            // Calculate height based on segment duration
+            const durationMinutes = (currentSegmentEnd.getTime() - currentSegmentStart.getTime()) / (1000 * 60);
+            const height = (durationMinutes / 60) * 50;
+
+            const taskEl = document.createElement('div');
+            
+            // Apply gradient or solid color based on number of assignees
+            if (assignedMembers.length > 1) {
+                const colors = assignedMembers.map((member, idx) => {
+                    const color = getComputedStyle(document.documentElement).getPropertyValue(`--team-color-${(member.colorIndex % 8) + 1}`);
+                    return `${color} ${idx / assignedMembers.length * 100}%`;
+                });
+                taskEl.style.background = `linear-gradient(to right, ${colors.join(', ')})`;
+            } else {
+                taskEl.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue(`--team-color-${(assignedMembers[0].colorIndex % 8) + 1}`);
+            }
+            
+            taskEl.className = `absolute rounded px-2 py-1 cursor-pointer hover:shadow-lg transition-shadow text-white text-xs overflow-hidden calendar-task${overlapCount > 1 ? ' overlapping' : ''}`;
+            taskEl.style.top = `${topPosition}px`;
+            taskEl.style.height = `${Math.max(20, height - 2)}px`;
+            
+            // Calculate width and left position based on overlap
+            const baseWidth = dayWidth - 4; // Base width minus padding
+            const taskWidth = baseWidth / overlapCount;
+            const leftOffset = index * taskWidth;
+            
+            taskEl.style.left = `${day * dayWidth + 2 + leftOffset}px`;
+            taskEl.style.width = `${taskWidth - 1}px`; // -1 for slight gap between overlapping tasks
+            taskEl.style.zIndex = `${10 + index}`; // Ensure proper stacking order
+
+            // Add classes for multi-day task visual cues
+            const startDayIndex = Math.floor((new Date(task.startDate).getTime() - calendarStart.getTime()) / (1000 * 60 * 60 * 24));
+            const endDayIndex = Math.floor((new Date(task.endDate).getTime() - calendarStart.getTime()) / (1000 * 60 * 60 * 24));
+            
+            if (day === startDayIndex && day < endDayIndex) {
+                taskEl.classList.add('task-multi-day-start');
+            } else if (day > startDayIndex && day < endDayIndex) {
+                taskEl.classList.add('task-multi-day-middle');
+            } else if (day === endDayIndex && day > startDayIndex) {
+                taskEl.classList.add('task-multi-day-end');
+            }
+
+            // Task content - adjust based on available width
+            const showDetails = taskWidth > 60; // Only show details if there's enough space
+            taskEl.innerHTML = `
+                <div class="font-semibold truncate" style="font-size: ${taskWidth < 80 ? '10px' : '12px'}">${task.title}</div>
+                ${showDetails ? `
+                    <div class="text-xs opacity-90 truncate">${assignedMembers.map(m => m.name).join(', ')}</div>
+                    ${height > 30 ? `<div class="text-xs opacity-75">${formatTime(currentSegmentStart)} - ${formatTime(currentSegmentEnd)}</div>` : ''}
+                ` : ''}
+            `;
+            
+            // Click handler to open task modal
+            taskEl.onclick = (e) => {
+                e.stopPropagation();
+                showTaskModal(task.id);
+            };
+            
+            // Enhanced tooltip for overlapping tasks
+            const overlapInfo = overlapCount > 1 ? `\n(${overlapCount} tasks overlap at this time)` : '';
+            taskEl.title = `${task.title}\nAssigned: ${assignedMembers.map(m => m.name).join(', ')}\nDuration: ${task.estimatedHours}h\nStatus: ${task.status}\n${formatFullDate(task.startDate)} - ${formatFullDate(task.endDate)}${overlapInfo}`;
+            
+            elements.push(taskEl);
+        });
+    });
+    
+    return elements;
+}
+
 // Format time only (e.g., "14:30")
 function formatTime(date) {
     const hours = date.getHours().toString().padStart(2, '0');
@@ -1540,42 +1774,6 @@ function formatTime(date) {
     return `${hours}:${minutes}`;
 }
 
-function setupSynchronizedScrolling() {
-    const scrollContainer = elements.calendarScrollContainer;
-    const scrollbar = elements.calendarScrollbar;
-    const timeColumn = elements.timeColumn;
-    const daysHeader = elements.calendarDaysHeader;
-
-    if (!scrollContainer || !scrollbar || !timeColumn || !daysHeader) return;
-
-    let isSyncing = false;
-
-    const syncHorizontalScroll = (source) => (event) => {
-        if (isSyncing) return;
-        isSyncing = true;
-        const target = event.currentTarget === scrollContainer ? scrollbar : scrollContainer;
-        target.scrollLeft = event.currentTarget.scrollLeft;
-        daysHeader.scrollLeft = event.currentTarget.scrollLeft;
-        setTimeout(() => { isSyncing = false; }, 100);
-    };
-
-    const syncVerticalScroll = () => {
-        if (isSyncing) return;
-        isSyncing = true;
-        timeColumn.scrollTop = scrollContainer.scrollTop;
-        setTimeout(() => { isSyncing = false; }, 100);
-    };
-
-    // Clear existing listeners to prevent duplicates
-    scrollContainer.removeEventListener('scroll', syncHorizontalScroll(scrollContainer));
-    scrollbar.removeEventListener('scroll', syncHorizontalScroll(scrollbar));
-    scrollContainer.removeEventListener('scroll', syncVerticalScroll);
-
-    // Add new listeners
-    scrollContainer.addEventListener('scroll', syncHorizontalScroll(scrollContainer));
-    scrollbar.addEventListener('scroll', syncHorizontalScroll(scrollbar));
-    scrollContainer.addEventListener('scroll', syncVerticalScroll);
-}
 
 
 /**

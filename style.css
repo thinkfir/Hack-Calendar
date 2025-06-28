@@ -15,6 +15,11 @@ body {
     /* Removed flex-grow here from original, will be applied to specific children if needed */
 }
 
+/* Calendar page specific styling for full height */
+#calendar-page {
+    height: 100%;
+}
+
 /* Main Sidebar Styling */
 #main-sidebar {
     background-color: #1f2937; /* A slightly lighter dark for contrast with body */
@@ -232,14 +237,10 @@ body {
     position: relative;
 }
 #time-column {
-    width: 60px; /* Fixed width for time column */
-    position: sticky; /* Sticky allows it to scroll with grid vertically */
-    left: 0;
-    top: 0; /* Aligned with the top of its parent flex item */
-    z-index: 20; /* Above grid lines, below tasks */
-    background-color: #1a202c; /* Match sidebar/background */
-    padding-top: 0.75rem; /* Aligned with header height */
-    height: 100%; /* Take full height of its container in flex */
+    /* No longer needs sticky positioning as it's inside the scroll container */
+    position: relative;
+    z-index: 10; /* Above grid lines */
+    border-right: 1px solid #2d3748; /* Add a border to separate from grid */
 }
 #calendar-days-header {
     flex-grow: 1;
@@ -250,12 +251,13 @@ body {
 #calendar-container {
     position: relative;
     flex-grow: 1;
+    height: 100%;
     /* Height will be set by JS */
 }
 #calendar-scroll-container {
     flex-grow: 1;
-    overflow-y: auto;
-    overflow-x: scroll;
+    overflow: auto; /* Let this container handle both vertical and horizontal scrolling */
+    display: flex; /* This is the key change to make children (time-column, calendar-container) align side-by-side */
 }
 #calendar-scrollbar {
     height: 10px; /* Height of the custom scrollbar */
@@ -274,10 +276,38 @@ body {
 .calendar-task {
     box-shadow: 0 2px 6px rgba(0,0,0,0.3); /* Task card shadow */
     transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 .calendar-task:hover {
     transform: scale(1.02); /* Slight scale on hover */
     box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    border-color: rgba(255, 255, 255, 0.3);
+    z-index: 100 !important; /* Ensure hovered task appears on top */
+}
+
+/* Visual indicator for overlapping tasks */
+.calendar-task.overlapping {
+    border-left: 2px solid rgba(255, 255, 255, 0.4);
+}
+
+/* Multi-day task visual continuity */
+.task-multi-day-start {
+    border-top-right-radius: 0.25rem;
+    border-bottom-right-radius: 0.25rem;
+    border-right: 1px dashed rgba(255, 255, 255, 0.3);
+}
+
+.task-multi-day-middle {
+    border-radius: 0;
+    border-left: 1px dashed rgba(255, 255, 255, 0.3);
+    border-right: 1px dashed rgba(255, 255, 255, 0.3);
+}
+
+.task-multi-day-end {
+    border-top-left-radius: 0.25rem;
+    border-bottom-left-radius: 0.25rem;
+    border-left: 1px dashed rgba(255, 255, 255, 0.3);
 }
 
 /* Mobile sidebar */
@@ -546,8 +576,8 @@ aside.lg\:translate-x-0 {
 
 /* Calendar improvements: shorter columns and internal scroll */
 #calendar-scroll-container {
-    max-height: 500px;
-    min-height: 300px;
+    height: 100%;
+    flex: 1;
     overflow-y: auto;
 }
 
@@ -562,4 +592,24 @@ aside.lg\:translate-x-0 {
     max-height: 16px !important;
     height: 12px !important;
     overflow: hidden;
+}
+
+/* Dashboard specific overflow handling */
+/* When dashboard is active, allow main to scroll */
+main.dashboard-active {
+    overflow-y: auto !important; /* Override the overflow-hidden class */
+}
+
+/* Ensure dashboard page can scroll properly when active */
+#dashboard-page {
+    height: 100%; /* Ensure it takes full height */
+    flex-direction: column; /* Stack content vertically */
+}
+
+/* Ensure dashboard content expands and scrolls properly */
+#dashboard-content {
+    flex-grow: 1; /* Take available space */
+    min-height: 0; /* Allow it to shrink if needed */
+    overflow-y: auto !important; /* Enable internal scrolling - override any conflicting styles */
+    max-height: none; /* Remove any height restrictions */
 }

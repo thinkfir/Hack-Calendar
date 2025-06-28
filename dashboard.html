@@ -53,7 +53,7 @@
     <div id="sidebar-overlay" class="fixed inset-0 bg-black opacity-50 z-30 hidden lg:hidden"></div>
 
     <!-- Main Content Area for Dashboard Pages -->
-    <main class="flex-1 lg:ml-64 flex flex-col p-4 lg:p-8 relative">
+    <main class="flex-1 lg:ml-64 flex flex-col p-4 lg:p-8 relative overflow-hidden">
 
         <!-- Dashboard Page -->
         <div id="dashboard-page" class="page flex-1 flex flex-col">
@@ -69,17 +69,17 @@
         </div>
 
         <!-- Calendar Page -->
-        <div id="calendar-page" class="page hidden flex-1 flex flex-col">
-            <div class="flex justify-between items-center mb-6">
+        <div id="calendar-page" class="page hidden flex-1 flex flex-col h-full">
+            <div class="flex justify-between items-center mb-6 flex-shrink-0">
                 <h2 class="text-3xl font-bold text-gray-200">Calendar View</h2>
                 <div class="text-sm text-gray-400" id="calendar-date-range">
                     <!-- Date range will be displayed here -->
                 </div>
             </div>
             
-            <div class="flex flex-col lg:flex-row gap-4 flex-grow">
+            <div class="flex flex-col lg:flex-row gap-4 flex-grow h-full min-h-0">
                 <!-- Main Calendar Container -->
-                <div class="flex-1 bg-gray-800 rounded-lg shadow-md overflow-hidden flex flex-col">
+                <div class="flex-1 bg-gray-800 rounded-lg shadow-md overflow-hidden flex flex-col min-w-0 h-full">
                     <div id="calendar-header" class="flex-shrink-0 flex bg-gray-700 rounded-t-lg">
                         <div class="w-16 lg:w-20 bg-gray-800 border-r border-gray-700 h-12"></div>
                         <div id="calendar-days-header" class="flex-1 overflow-x-hidden">
@@ -87,32 +87,26 @@
                         </div>
                     </div>
                     
-                    <div class="flex-1 flex overflow-hidden">
-                        <!-- Time Column - Fixed -->
-                        <div class="w-16 lg:w-20 border-r border-gray-700 bg-gray-800 overflow-hidden relative">
-                            <div id="time-column" class="absolute inset-0">
-                                <!-- Time slots will be rendered here -->
-                            </div>
+                    <div id="calendar-scroll-container" class="flex-1 flex overflow-auto custom-scrollbar h-full">
+                        <!-- This container now holds both the time column and the grid -->
+                        <div id="time-column" class="w-16 lg:w-20 flex-shrink-0 bg-gray-800 relative">
+                            <!-- Time slots will be rendered here -->
                         </div>
-                        
-                        <!-- Calendar Grid - Scrollable -->
-                        <div id="calendar-scroll-container" class="flex-1 overflow-auto custom-scrollbar">
-                            <div id="calendar-container" class="relative">
-                                <!-- Calendar will be rendered here -->
-                            </div>
+                        <div id="calendar-container" class="relative flex-grow h-full">
+                            <!-- Calendar grid and tasks will be rendered here -->
                         </div>
                     </div>
                     
                     <!-- Horizontal Scrollbar for Multi-day Support -->
-                    <div id="calendar-scrollbar" class="h-4 bg-gray-700 border-t border-gray-600 overflow-x-auto rounded-b-lg">
+                    <div id="calendar-scrollbar" class="h-4 bg-gray-700 border-t border-gray-600 overflow-x-auto rounded-b-lg flex-shrink-0">
                         <div id="scrollbar-content" style="height: 1px;"></div>
                     </div>
                 </div>
                 
                 <!-- Team Members Sidebar -->
-                <div class="w-full lg:w-64 bg-gray-800 rounded-lg shadow-md p-4 flex-shrink-0">
+                <div class="w-full lg:w-64 bg-gray-800 rounded-lg shadow-md p-4 flex flex-col flex-shrink-0">
                     <h3 class="text-lg font-semibold mb-4 text-blue-300">Team Members</h3>
-                    <div id="team-members-calendar-list" class="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+                    <div id="team-members-calendar-list" class="space-y-2 overflow-y-auto custom-scrollbar flex-grow min-h-[100px]">
                         <!-- Team members will be listed here -->
                     </div>
                     
