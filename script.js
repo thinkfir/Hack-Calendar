@@ -280,6 +280,7 @@ function setupEventListeners() {
 function toggleApiKeyInput(provider) {
     const apiKeySection = document.getElementById('api-key-section');
     const customEndpointSection = document.getElementById('custom-endpoint-section');
+    let labelText = 'AI Model'; // Default value
 
     if (apiKeySection) {
         if (provider === 'google') { // Google Gemini Flash API key is provided by the environment
@@ -302,7 +303,6 @@ function toggleApiKeyInput(provider) {
     if (elements.aiModelSelect) {
         elements.aiModelSelect.innerHTML = ''; // Clear existing options
         let models = [];
-        let labelText = 'AI Model';
 
         switch (provider) {
             case 'openai':
@@ -726,6 +726,8 @@ async function handleGeneralChatSubmit(event) {
         
         IMPORTANT: When creating new tasks, ensure ALL task start and end dates fall within the hackathon timeframe (${hackathonStart ? hackathonStart.toISOString() : 'NOT SET'} to ${hackathonEnd ? hackathonEnd.toISOString() : 'NOT SET'}). Do not create tasks that extend beyond the hackathon duration.
         
+        The 'startTime' and 'endTime' fields are MANDATORY for every task.
+
         If the user asks for new tasks or to modify existing tasks, generate JSON for tasks following this schema:
         {
             "action": "update_tasks",
@@ -771,12 +773,14 @@ async function handleGeneralChatSubmit(event) {
                             startDate: { type: "STRING" },
                             endDate: { type: "STRING" }
                         },
+                        required: ["id", "title", "description", "phase", "estimatedHours", "priority", "assignedTo", "status", "startDate", "endDate"],
                         propertyOrdering: [
                             "id", "title", "description", "phase", "estimatedHours", "priority", "assignedTo", "status", "startDate", "endDate"
                         ]
                     }
                 }
             },
+            required: ["action", "tasks"],
             propertyOrdering: ["action", "tasks"]
         };
         const responseText = await callGeminiAPI(prompt, selectedProvider, taskSchema);
@@ -785,65 +789,44 @@ async function handleGeneralChatSubmit(event) {
         let actionHandled = false;
 
         try {
-            // responseText might already be parsed if a schema was provided
-            const parsedResponse = typeof responseText === 'string' ? JSON.parse(responseText) : responseText;
-            if (parsedResponse.action === 'update_tasks' && Array.isArray(parsedResponse.tasks)) {
-                parsedResponse.tasks.forEach(taskData => {
-                    // Convert assignedTo names from AI response to actual member IDs
-                    const assignedToIds = Array.isArray(taskData.assignedTo)
-                        ? taskData.assignedTo.map(name => {
+            const tasksFromAI = Array.isArray(responseText) ? responseText : (responseText.tasks || []);
+
+            if (tasksFromAI.length > 0) {
+                // Standardize the data right here, at the source.
+                const standardizedTasks = tasksFromAI.map(aiTask => {
+                    const assignedToIds = Array.isArray(aiTask.assignedTo)
+                        ? aiTask.assignedTo.map(name => {
                             const member = app.teamMembers.find(m => m.name.toLowerCase() === name.toLowerCase());
                             return member ? member.id : null;
                         }).filter(id => id !== null)
                         : [];
-                    
-                    const taskToUpdate = { ...taskData, assignedTo: assignedToIds };
 
-                    // Validate and adjust dates to ensure they're within hackathon timeframe
-                    if (hackathonStart && hackathonEnd) {
-                        // Parse dates if they're strings
-                        let taskStart = taskToUpdate.startDate ? new Date(taskToUpdate.startDate) : null;
-                        let taskEnd = taskToUpdate.endDate ? new Date(taskToUpdate.endDate) : null;
-                        
-                        // Validate and clamp start date
-                        if (!taskStart || taskStart < hackathonStart || taskStart > hackathonEnd) {
-                            taskStart = new Date(hackathonStart);
-                        }
-                        
-                        // Validate and clamp end date
-                        if (!taskEnd) {
-                            taskEnd = addHours(taskStart, taskToUpdate.estimatedHours || 1);
-                        }
-                        if (taskEnd > hackathonEnd) {
-                            taskEnd = new Date(hackathonEnd);
-                            // Adjust start date if necessary to fit duration
-                            const desiredDuration = (taskToUpdate.estimatedHours || 1) * 60 * 60 * 1000; // in milliseconds
-                            const adjustedStart = new Date(taskEnd.getTime() - desiredDuration);
-                            if (adjustedStart >= hackathonStart) {
-                                taskStart = adjustedStart;
-                            }
-                        }
-                        if (taskEnd < taskStart) {
-                            taskEnd = addHours(taskStart, 1); // Minimum 1 hour task
-                        }
-                        
-                        taskToUpdate.startDate = taskStart;
-                        taskToUpdate.endDate = taskEnd;
-                    } else {
-                        // Fallback if no hackathon timeframe is set
-                        if (!taskToUpdate.startDate) taskToUpdate.startDate = new Date();
-                        if (!taskToUpdate.endDate) taskToUpdate.endDate = addHours(taskToUpdate.startDate, taskToUpdate.estimatedHours || 1);
-                    }
+                    return {
+                        id: aiTask.id, // Keep original ID if provided
+                        name: aiTask.title, // Standardize to 'name'
+                        description: aiTask.description,
+                        startTime: aiTask.startDate, // Standardize to 'startTime'
+                        endTime: aiTask.endDate,   // Standardize to 'endTime'
+                        assignedTo: assignedToIds,
+                        status: aiTask.status,
+                        priority: aiTask.priority,
+                        estimatedHours: aiTask.estimatedHours,
+                        phase: aiTask.phase,
+                        dependencies: aiTask.dependencies
+                    };
+                });
 
+                // Now, process the clean, standardized tasks
+                standardizedTasks.forEach(taskData => {
                     const existingTask = app.allTasks.find(t => t.id === taskData.id);
                     if (existingTask) {
-                        updateTask(taskToUpdate.id, taskToUpdate);
-                        aiContent = `Updated task: "${taskToUpdate.title}".`;
+                        updateTask(taskData.id, taskData);
                     } else {
-                        createTask(taskToUpdate);
-                        aiContent = `Added new task: "${taskToUpdate.title}".`;
+                        createTask(taskData);
                     }
                 });
+
+                aiContent = `AI has updated the task list.`;
                 showMessage('Tasks Updated!', 'AI has updated/added tasks. Check the Calendar or Team page.', 'alert');
                 actionHandled = true;
             }
@@ -940,7 +923,6 @@ async function callGeminiAPI(prompt, provider, outputSchema = null) {
         }
 
         const data = await response.json();
-        console.log('API response data:', data); // Debug log
         
         let aiResponseContent;
         
@@ -1079,7 +1061,7 @@ function displayGeneratedTasks(tasks) {
             html += `
                 <div class="bg-gray-700 p-3 rounded">
                     <div class="flex justify-between items-start">
-                        <strong class="text-white">${task.title}</strong>
+                        <strong class="text-white">${task.name}</strong>
                         <div class="flex gap-1 flex-wrap">
                             ${assignedMembers.map(member => `
                                 <span class="team-badge team-member-${(member.colorIndex % 8) + 1} text-xs">
@@ -1090,7 +1072,7 @@ function displayGeneratedTasks(tasks) {
                     </div>
                     <p class="text-sm text-gray-300 mt-1">${task.description}</p>
                     <div class="flex justify-between items-center mt-2">
-                        <span class="text-xs text-gray-400">${formatDate(task.startDate)} - ${formatDate(task.endDate)}</span>
+                        <span class="text-xs text-gray-400">${formatDate(task.startTime)} - ${formatDate(task.endTime)}</span>
                         <span class="text-xs px-2 py-1 rounded-full bg-gray-600 text-gray-200">${task.status || 'Not Started'}</span>
                     </div>
                 </div>
@@ -1225,13 +1207,20 @@ function handleImportData(event) {
  * @returns {object} The newly created task object.
  */
 function createTask(taskData) {
+    // This function now expects standardized data.
+    // It provides a safe fallback for dates if they are missing from the AI response.
+    const hackathonStartDate = app.hackathonSettings.startDate || new Date();
+    const startTime = taskData.startTime ? new Date(taskData.startTime) : hackathonStartDate;
+    // If endTime is missing, default it to 1 hour after the startTime.
+    const endTime = taskData.endTime ? new Date(taskData.endTime) : new Date(startTime.getTime() + 60 * 60 * 1000);
+
     const task = {
-        id: generateId(),
-        title: taskData.title || 'New Task',
+        id: taskData.id || generateId(),
+        name: taskData.name || 'New Task',
         description: taskData.description || '',
-        startDate: taskData.startDate || new Date(),
-        endDate: taskData.endDate || new Date(),
-        assignedTo: taskData.assignedTo || [], // Changed to array for multiple assignees
+        startTime: startTime,
+        endTime: endTime,
+        assignedTo: taskData.assignedTo || [],
         status: taskData.status || 'Not Started',
         priority: taskData.priority || 'medium',
         dependencies: taskData.dependencies || [],
@@ -1252,6 +1241,7 @@ function createTask(taskData) {
 function updateTask(taskId, updates) {
     const taskIndex = app.allTasks.findIndex(t => t.id === taskId);
     if (taskIndex !== -1) {
+        // This function now expects standardized data in the 'updates' object.
         app.allTasks[taskIndex] = { ...app.allTasks[taskIndex], ...updates };
         saveToLocalStorage();
         
@@ -1408,8 +1398,19 @@ function renderCalendarGrid() {
     
     const startDate = new Date(app.hackathonSettings.startDate);
     const endDate = calculateEndDate(startDate, app.hackathonSettings.duration);
-    const totalMilliseconds = endDate.getTime() - startDate.getTime();
-    const days = Math.ceil(totalMilliseconds / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end day
+    
+    // Calculate the number of calendar days needed to display the full hackathon
+    const startDay = new Date(startDate);
+    startDay.setHours(0, 0, 0, 0); // Start of first day
+    
+    const endDay = new Date(endDate);
+    endDay.setHours(23, 59, 59, 999); // End of last day
+    
+    const days = Math.ceil((endDay.getTime() - startDay.getTime()) / (1000 * 60 * 60 * 24));
+    
+    console.log(`=== CALENDAR RANGE ===`);
+    console.log(`Hackathon: ${startDate} to ${endDate}`);
+    console.log(`Calendar days: ${days} (from ${startDay} to ${endDay})`);
     
     const minColumnWidth = 150;
     const totalWidth = Math.max(days * minColumnWidth, scrollContainer.offsetWidth); // Ensure it's at least as wide as container
@@ -1466,7 +1467,15 @@ function renderCalendarGrid() {
     
     // Calculate task overlaps and create elements with proper positioning
     const taskElementsWithOverlap = createTaskElementsWithOverlapHandling(app.allTasks, startDate, days, totalWidth);
-    taskElementsWithOverlap.forEach(el => grid.appendChild(el));
+    console.log(`=== APPENDING ELEMENTS TO DOM ===`);
+    console.log(`About to append ${taskElementsWithOverlap.length} elements to calendar grid`);
+    
+    taskElementsWithOverlap.forEach((el, index) => {
+        console.log(`Appending element ${index + 1}:`, el);
+        grid.appendChild(el);
+    });
+    
+    console.log(`=== DOM APPEND COMPLETE ===`);
     
     container.appendChild(grid);
     
@@ -1610,6 +1619,9 @@ function createTaskElements(task, calendarStart, totalDays, totalWidth) {
  * @returns {Array<HTMLElement>} An array of task DIV elements with overlap handling.
  */
 function createTaskElementsWithOverlapHandling(tasks, calendarStart, totalDays, totalWidth) {
+    console.log("=== TASK ELEMENT CREATION ===");
+    console.log("Creating elements for", tasks.length, "tasks");
+    
     const elements = [];
     const dayWidth = 180;
     
@@ -1617,35 +1629,56 @@ function createTaskElementsWithOverlapHandling(tasks, calendarStart, totalDays, 
     const tasksByDaySlot = new Map(); // Key: "dayIndex_timeSlot", Value: array of tasks
     
     // First pass: categorize all tasks by their day and time slots
-    tasks.forEach(task => {
+    tasks.forEach((task, index) => {
+        console.log(`Processing task ${index + 1}/${tasks.length}: "${task.name}"`);
+        
         const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
         const assignedMembers = assignees.map(id => app.teamMembers.find(m => m.id === id)).filter(m => m);
         
         // Continue processing both assigned and unassigned tasks
 
-        const taskStart = new Date(task.startDate);
-        const taskEnd = new Date(task.endDate);
+        const taskStart = new Date(task.startTime);
+        const taskEnd = new Date(task.endTime);
 
         // Basic validation for dates
         if (isNaN(taskStart.getTime()) || isNaN(taskEnd.getTime())) {
-            console.warn('Invalid date for task:', task.title, task.startDate, task.endDate);
+            console.warn('SKIPPING - Invalid date for task:', task.name, task.startTime, task.endTime);
             return;
         }
+        
+        console.log(`Task dates valid: ${taskStart} to ${taskEnd}`);
         
         const calendarEnd = calculateEndDate(calendarStart, app.hackathonSettings.duration);
         
         // Skip tasks completely outside the calendar range
-        if (taskEnd < calendarStart || taskStart > calendarEnd) return;
+        if (taskEnd < calendarStart || taskStart > calendarEnd) {
+            console.log(`SKIPPING task "${task.name}" - outside calendar range`);
+            return;
+        }
         
         // Determine the actual start and end for rendering within the calendar bounds
         const effectiveRenderStart = new Date(Math.max(taskStart.getTime(), calendarStart.getTime()));
         const effectiveRenderEnd = new Date(Math.min(taskEnd.getTime(), calendarEnd.getTime()));
         
         // Calculate the start and end day index within the calendar range
-        const startDayIndex = Math.floor((effectiveRenderStart.getTime() - calendarStart.getTime()) / (1000 * 60 * 60 * 24));
-        const endDayIndex = Math.floor((effectiveRenderEnd.getTime() - calendarStart.getTime()) / (1000 * 60 * 60 * 24));
+        // Use proper day boundaries (start of day) for accurate calculations
+        const calendarDayStart = new Date(calendarStart);
+        calendarDayStart.setHours(0, 0, 0, 0);
+        
+        const taskStartDay = new Date(effectiveRenderStart);
+        taskStartDay.setHours(0, 0, 0, 0);
+        
+        const taskEndDay = new Date(effectiveRenderEnd);
+        taskEndDay.setHours(0, 0, 0, 0);
+        
+        const startDayIndex = Math.floor((taskStartDay.getTime() - calendarDayStart.getTime()) / (1000 * 60 * 60 * 24));
+        const endDayIndex = Math.floor((taskEndDay.getTime() - calendarDayStart.getTime()) / (1000 * 60 * 60 * 24));
 
+        console.log(`Task "${task.name}": startDayIndex=${startDayIndex}, endDayIndex=${endDayIndex}, totalDays=${totalDays}`);
+        
         for (let day = startDayIndex; day <= endDayIndex && day < totalDays; day++) {
+            console.log(`  Processing day ${day} for task "${task.name}"`);
+            
             // Calculate the start and end time for the current day's segment of the task
             const segmentDayStart = new Date(calendarStart);
             segmentDayStart.setDate(segmentDayStart.getDate() + day);
@@ -1690,17 +1723,25 @@ function createTaskElementsWithOverlapHandling(tasks, calendarStart, totalDays, 
     // Second pass: create task elements with overlap positioning
     const processedTasks = new Set(); // Track processed task segments to avoid duplicates
     
+    console.log(`=== PROCESSING GROUPED TASKS ===`);
+    console.log(`Total day/time slots with tasks: ${tasksByDaySlot.size}`);
+    
     tasksByDaySlot.forEach((tasksInSlot, slotKey) => {
         const [dayIndex, timeSlot] = slotKey.split('_').map(Number);
         const overlapCount = tasksInSlot.length;
+        console.log(`Processing slot ${slotKey} with ${tasksInSlot.length} tasks:`, tasksInSlot.map(t => t.task.name));
         
         tasksInSlot.forEach((taskInfo, index) => {
             const { task, day, currentSegmentStart, currentSegmentEnd, assignedMembers } = taskInfo;
             
             // Create unique key for this task segment
             const segmentKey = `${task.id}_${day}_${currentSegmentStart.getTime()}_${currentSegmentEnd.getTime()}`;
-            if (processedTasks.has(segmentKey)) return;
+            if (processedTasks.has(segmentKey)) {
+                console.log(`SKIPPING duplicate segment for task "${task.name}"`);
+                return;
+            }
             processedTasks.add(segmentKey);
+            console.log(`CREATING DOM ELEMENT for task "${task.name}" at day ${day}`);
             
             // Calculate position based on time of day
             const hourOfDay = currentSegmentStart.getHours() + (currentSegmentStart.getMinutes() / 60);
@@ -1758,7 +1799,7 @@ function createTaskElementsWithOverlapHandling(tasks, calendarStart, totalDays, 
                 : 'Unassigned';
             
             taskEl.innerHTML = `
-                <div class="font-semibold truncate" style="font-size: ${taskWidth < 80 ? '10px' : '12px'}">${task.title}</div>
+                <div class="font-semibold truncate" style="font-size: ${taskWidth < 80 ? '10px' : '12px'}">${task.name}</div>
                 ${showDetails ? `
                     <div class="text-xs opacity-90 truncate">${memberNames}</div>
                     ${height > 30 ? `<div class="text-xs opacity-75">${formatTime(currentSegmentStart)} - ${formatTime(currentSegmentEnd)}</div>` : ''}
@@ -1776,7 +1817,7 @@ function createTaskElementsWithOverlapHandling(tasks, calendarStart, totalDays, 
             const assignedText = assignedMembers.length > 0 
                 ? assignedMembers.map(m => m.name).join(', ')
                 : 'Unassigned';
-            taskEl.title = `${task.title}\nAssigned: ${assignedText}\nDuration: ${task.estimatedHours}h\nStatus: ${task.status}\n${formatFullDate(task.startDate)} - ${formatFullDate(task.endDate)}${overlapInfo}`;
+            taskEl.title = `${task.name}\nAssigned: ${assignedText}\nDuration: ${task.estimatedHours}h\nStatus: ${task.status}\n${formatFullDate(task.startTime)} - ${formatFullDate(task.endTime)}${overlapInfo}`;
             
             elements.push(taskEl);
         });
@@ -1859,21 +1900,27 @@ function showMemberTasks(memberId) {
             return t.assignedTo.includes(memberId);
         }
         return t.assignedTo === memberId;
-    }).sort((a, b) => a.startDate.getTime() - b.startDate.getTime()); // Sort by start date
+    }).sort((a, b) => {
+        const timeA = a.startTime ? new Date(a.startTime).getTime() : 0;
+        const timeB = b.startTime ? new Date(b.startTime).getTime() : 0;
+        return timeA - timeB;
+    });
     
     popupTasks.innerHTML = memberTasks.length > 0 ? memberTasks.map(task => {
         const assignees = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
         const assignedMembers = assignees.map(id => app.teamMembers.find(m => m.id === id)).filter(m => m);
         
+        const startTimeStr = task.startTime ? formatDate(new Date(task.startTime)) : 'No start date';
+        const endTimeStr = task.endTime ? formatDate(new Date(task.endTime)) : 'No end date';
+
         return `
             <div class="p-2 bg-gray-700 rounded border border-gray-600 cursor-pointer hover:shadow-sm"
                  onclick="showTaskModal('${task.id}')">
-                <div class="font-medium text-white">${task.title}</div>
+                <div class="font-medium text-white">${task.name || task.title}</div>
                 <div class="text-xs text-gray-400">
-                    ${formatDate(task.startDate)} - ${formatDate(task.endDate)}
-                    (${task.estimatedHours}h)
+                    ${startTimeStr} - ${endTimeStr}
                 </div>
-                <div class="text-xs text-gray-500 mt-1">Phase: ${task.phase} | Priority: ${task.priority} | Status: ${task.status}</div>
+                <div class="text-xs text-gray-500 mt-1">Status: ${task.status}</div>
                 ${assignedMembers.length > 1 ? `
                     <div class="text-xs text-gray-500 mt-1">
                         Assigned with: ${assignedMembers.filter(m => m.id !== memberId).map(m => m.name).join(', ')}
@@ -2241,14 +2288,33 @@ function loadFromLocalStorage() {
             }
             
             if (parsed.allTasks) {
-                app.allTasks = parsed.allTasks;
-                app.allTasks.forEach(task => {
-                    if (task.startDate) task.startDate = new Date(task.startDate);
-                    if (task.endDate) task.endDate = new Date(task.endDate);
-                    
-                    if (!Array.isArray(task.assignedTo)) {
-                        task.assignedTo = task.assignedTo ? [task.assignedTo] : [];
+                app.allTasks = parsed.allTasks.map(task => {
+                    // Migrate old property names and ensure dates are Date objects
+                    const newTask = { ...task };
+                    if (newTask.title) {
+                        newTask.name = newTask.title;
+                        delete newTask.title;
                     }
+                    if (newTask.startDate) {
+                        newTask.startTime = new Date(newTask.startDate);
+                        delete newTask.startDate;
+                    }
+                    if (newTask.endDate) {
+                        newTask.endTime = new Date(newTask.endDate);
+                        delete newTask.endDate;
+                    }
+                    // Handle cases where new properties are stored as strings
+                    if (newTask.startTime && !(newTask.startTime instanceof Date)) {
+                        newTask.startTime = new Date(newTask.startTime);
+                    }
+                    if (newTask.endTime && !(newTask.endTime instanceof Date)) {
+                        newTask.endTime = new Date(newTask.endTime);
+                    }
+                    // Ensure assignedTo is an array
+                    if (!Array.isArray(newTask.assignedTo)) {
+                        newTask.assignedTo = newTask.assignedTo ? [newTask.assignedTo] : [];
+                    }
+                    return newTask;
                 });
             }
             
