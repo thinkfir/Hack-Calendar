@@ -479,6 +479,10 @@ async function generateTasksWithAI(projectIdea, provider, updateProgress) {
         return generateProjectTasks(projectIdea, updateProgress); // Fallback to local generation (without assignment)
     }
 
+    // Calculate the end date for the hackathon based on start date and duration
+    // This provides the AI with explicit timing context for task scheduling
+    const endDate = new Date(startDate.getTime() + totalHours * 60 * 60 * 1000);
+
     const teamMembersInfo = teamMembers.map(m => {
         const skills = m.skills.length > 0 ? `Skills: [${m.skills.join(', ')}]` : 'No specific skills listed';
         return `- Name: ${m.name}, ${skills}, Sleep: ${m.sleepStart}-${m.sleepEnd}`;
@@ -493,6 +497,7 @@ ${teamMembersInfo}
 
 Hackathon Start Date: ${startDate.toISOString()}
 Hackathon Duration: ${totalHours} hours
+The hackathon ends at ${endDate.toISOString()}
 
 IMPORTANT CONSTRAINTS:
 1. Assign tasks to team members by their full name. Prioritize members whose skills best match the task. If multiple members have relevant skills, distribute the workload evenly. If no specific skill match, assign based on general availability.
