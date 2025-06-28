@@ -498,6 +498,7 @@ ${teamMembersInfo}
 Hackathon Start Date: ${startDate.toISOString()}
 Hackathon Duration: ${totalHours} hours
 The hackathon ends at ${endDate.toISOString()}
+Hackathon End Time: ${endDate.toLocaleTimeString('en-US', { hour12: false, timeZone: 'UTC' })}
 
 IMPORTANT CONSTRAINTS:
 1. Assign tasks to team members by their full name. Prioritize members whose skills best match the task. If multiple members have relevant skills, distribute the workload evenly. If no specific skill match, assign based on general availability.
