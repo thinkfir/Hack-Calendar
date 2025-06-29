@@ -1,22 +1,17 @@
 // server.js - Express proxy for Gemini API and static file server
-    const express = require('express');
-    const genaiModule = require('@google/genai');
-    console.log('[@google/genai] module export:', genaiModule);
-    // Comment out destructuring and usage to avoid crash for now
-    // const { GoogleGenAI } = genaiModule;
-    // console.log('[GoogleGenAI] value:', GoogleGenAI);
-    // const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
-    const cors = require('cors');
-    const path = require('path'); // Import the 'path' module to handle file paths
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+
+require('dotenv').config(); // Load environment variables from .env file
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Middleware to parse JSON bodies
+app.use(express.json());
     
-    require('dotenv').config(); // Load environment variables from .env file
-    
-    const app = express();
-    const PORT = process.env.PORT || 3001; // Use port from .env or default to 3001
-    
-        // const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
-    
-    // Middleware to enable CORS for all requests (important for development and production)
+// Middleware to enable CORS for all requests (important for development and production)
     app.use(cors({
         origin: ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000'], // Allow both production and development
         methods: ['GET', 'POST', 'OPTIONS'],

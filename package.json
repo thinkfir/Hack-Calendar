@@ -1,13 +1,20 @@
 {
+  "name": "hack-calendar",
+  "version": "1.0.0",
+  "description": "AI-powered hackathon project management tool",
+  "main": "server.js",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build": "echo 'No build step required'"
   },
   "dependencies": {
-    "@google/genai": "latest",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
-    "express": "^5.1.0",
+    "express": "^4.18.2",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
