@@ -882,7 +882,7 @@ async function callGeminiAPI(prompt, provider, outputSchema = null) {
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 apiUrl = '/gemini'; // Local development
             } else {
-                apiUrl = `${window.location.origin}/gemini`; // Use current domain for production
+                apiUrl = '/.netlify/functions/gemini'; // Netlify functions
             }
             payload = {
                 history: history,
