@@ -2,30 +2,17 @@
   "version": 2,
   "builds": [
     {
-      "src": "server.js",
+      "src": "api/gemini.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/gemini",
-      "dest": "/server.js"
-    },
-    {
-      "src": "/(.*\\.(html|css|js|png|jpg|jpeg|gif|svg|ico))",
-      "dest": "/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
+      "dest": "/api/gemini.js"
     }
   ],
   "env": {
     "GEMINI_API_KEY": "@GEMINI_API_KEY"
-  },
-  "functions": {
-    "server.js": {
-      "maxDuration": 30
-    }
   }
 }
