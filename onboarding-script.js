@@ -527,7 +527,7 @@ Allocate time wisely for phases, roughly as percentages of total project hours:
 - Presentation: ~5% (demo prep)`;
 
     // Determine API URL and payload structure for Google Gemini Flash
-    apiUrl = 'https://hack-calendar.vercel.app:3001/gemini'; // Proxy through Node server on correct port
+    apiUrl = 'https://hack-calendar.vercel.app/gemini'; // Proxy through Node server (no port needed on Vercel)
     payload = {
         contents: [{
             parts: [{

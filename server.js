@@ -16,18 +16,37 @@
     
         // const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
     
-    // Middleware to enable CORS for all requests (important for development)
+    // Middleware to enable CORS for all requests (important for development and production)
     app.use(cors({
-        origin: '*', // Or specify your frontend origin for more security
+        origin: ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000'], // Allow both production and development
         methods: ['GET', 'POST', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization']
+        allowedHeaders: ['Content-Type', 'Authorization'],
+        credentials: true
     }));
+
+    // Handle preflight OPTIONS requests
+    app.options('*', (req, res) => {
+        const allowedOrigins = ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000'];
+        const origin = req.headers.origin;
+        if (allowedOrigins.includes(origin)) {
+            res.setHeader('Access-Control-Allow-Origin', origin);
+        }
+        res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.sendStatus(200);
+    });
 
     // Ensure CORS headers are set on all responses, including errors
     app.use((req, res, next) => {
-        res.header('Access-Control-Allow-Origin', '*'); // Or your frontend URL
+        const allowedOrigins = ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000'];
+        const origin = req.headers.origin;
+        if (allowedOrigins.includes(origin)) {
+            res.setHeader('Access-Control-Allow-Origin', origin);
+        }
         res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
         res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+        res.header('Access-Control-Allow-Credentials', 'true');
         next();
     });
     
@@ -119,7 +138,11 @@
                 const errorMessage = apiData.error?.message || apiData.message || "Gemini API error";
                 console.error('Gemini API error:', errorMessage);
                 // Ensure CORS headers on error
-                res.header('Access-Control-Allow-Origin', '*');
+                const allowedOrigins = ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000'];
+                const origin = req.headers.origin;
+                if (allowedOrigins.includes(origin)) {
+                    res.setHeader('Access-Control-Allow-Origin', origin);
+                }
                 res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
                 res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
                 return res.status(apiRes.status).json({ error: errorMessage, raw: rawText });
@@ -135,7 +158,11 @@
         } catch (err) {
             console.error('Proxy error:', err);
             // Ensure CORS headers on error
-            res.header('Access-Control-Allow-Origin', '*');
+            const allowedOrigins = ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000'];
+            const origin = req.headers.origin;
+            if (allowedOrigins.includes(origin)) {
+                res.setHeader('Access-Control-Allow-Origin', origin);
+            }
             res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
             res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
             res.status(500).json({ error: 'Proxy error', details: err.message });

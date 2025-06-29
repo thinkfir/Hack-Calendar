@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
   "dependencies": {
     "@google/genai": "latest",
     "cors": "^2.8.5",
