@@ -1,6 +1,10 @@
 # Hack Calendar
 
-A smart calendar application with AI-powered features using Google Gemini API.
+A hackathon project planner that uses AI to help create tasks and a schedule.
+
+## Demo Video
+
+https://streamable.com/nov7k6
 
 ## Deployment
 
