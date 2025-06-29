@@ -2,6 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fetch = require('node-fetch');
 
 require('dotenv').config(); // Load environment variables from .env file
 
@@ -107,7 +108,6 @@ app.use(express.json());
                 generationConfig
             };
 
-            const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
             const apiRes = await fetch(geminiUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
