@@ -1,4 +1,4 @@
-    // server.js - Express proxy for Gemini API and static file server
+// server.js - Express proxy for Gemini API and static file server
     const express = require('express');
     const genaiModule = require('@google/genai');
     console.log('[@google/genai] module export:', genaiModule);
@@ -17,9 +17,19 @@
         // const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
     
     // Middleware to enable CORS for all requests (important for development)
-    app.use(cors());
-    // Middleware to parse JSON bodies from incoming requests
-    app.use(express.json());
+    app.use(cors({
+        origin: '*', // Or specify your frontend origin for more security
+        methods: ['GET', 'POST', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization']
+    }));
+
+    // Ensure CORS headers are set on all responses, including errors
+    app.use((req, res, next) => {
+        res.header('Access-Control-Allow-Origin', '*'); // Or your frontend URL
+        res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+        next();
+    });
     
     // Serve static files from the current directory (where server.js is located)
     app.use(express.static(__dirname));
@@ -108,6 +118,10 @@
             if (!apiRes.ok) {
                 const errorMessage = apiData.error?.message || apiData.message || "Gemini API error";
                 console.error('Gemini API error:', errorMessage);
+                // Ensure CORS headers on error
+                res.header('Access-Control-Allow-Origin', '*');
+                res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+                res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
                 return res.status(apiRes.status).json({ error: errorMessage, raw: rawText });
             }
 
@@ -120,6 +134,10 @@
             return res.json(apiData);
         } catch (err) {
             console.error('Proxy error:', err);
+            // Ensure CORS headers on error
+            res.header('Access-Control-Allow-Origin', '*');
+            res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+            res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
             res.status(500).json({ error: 'Proxy error', details: err.message });
         }
     });
