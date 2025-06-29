@@ -12,11 +12,20 @@
       "dest": "/server.js"
     },
     {
+      "src": "/(.*\\.(html|css|js|png|jpg|jpeg|gif|svg|ico))",
+      "dest": "/$1"
+    },
+    {
       "src": "/(.*)",
       "dest": "/$1"
     }
   ],
   "env": {
     "GEMINI_API_KEY": "@gemini_api_key"
+  },
+  "functions": {
+    "server.js": {
+      "maxDuration": 30
+    }
   }
 }
