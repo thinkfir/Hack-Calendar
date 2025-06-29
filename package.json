@@ -12,6 +12,7 @@
     "build": "echo 'No build step required'"
   },
   "dependencies": {
+    "express": "^5.1.0",
     "node-fetch": "^2.7.0"
   },
   "devDependencies": {
