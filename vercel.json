@@ -1,17 +1,4 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/gemini.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/gemini",
-      "dest": "/api/gemini.js"
-    }
-  ],
   "env": {
     "GEMINI_API_KEY": "@GEMINI_API_KEY"
   }
