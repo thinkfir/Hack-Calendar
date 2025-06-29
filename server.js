@@ -1,4 +1,4 @@
-// server.js - Express proxy for Gemini API and static file server
+/*// server.js - Express proxy for Gemini API and static file server
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -167,4 +167,4 @@ app.use(express.json());
     // Start the Express server
     app.listen(PORT, () => {
         console.log(`Gemini proxy and static file server running on http://localhost:${PORT}`);
-    });
+    }); */

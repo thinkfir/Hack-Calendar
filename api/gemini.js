@@ -2,7 +2,7 @@ const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
     // Set CORS headers
-    const allowedOrigins = ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000'];
+    const allowedOrigins = ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000','https://jade-nougat-d7fdb4.netlify.app/'];
     const origin = req.headers.origin;
     if (allowedOrigins.includes(origin)) {
         res.setHeader('Access-Control-Allow-Origin', origin);
