@@ -1,5 +1,23 @@
 {
+  "version": 2,
   "env": {
     "GEMINI_API_KEY": "@GEMINI_API_KEY"
-  }
+  },
+  "builds": [
+    {
+      "src": "index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+      ],
+      "dest": "index.js"
+    }
+  ]
 }
