@@ -18,7 +18,7 @@
     
     // Middleware to enable CORS for all requests (important for development and production)
     app.use(cors({
-        origin: ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000'], // Allow both production and development
+        origin: ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000', 'https://jade-nougat-d7fdb4.netlify.app/gemini'], // Allow both production and development
         methods: ['GET', 'POST', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization'],
         credentials: true
@@ -26,7 +26,7 @@
 
     // Handle preflight OPTIONS requests
     app.options('*', (req, res) => {
-        const allowedOrigins = ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000'];
+        const allowedOrigins = ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000', 'https://jade-nougat-d7fdb4.netlify.app/gemini'];
         const origin = req.headers.origin;
         if (allowedOrigins.includes(origin)) {
             res.setHeader('Access-Control-Allow-Origin', origin);
@@ -39,7 +39,7 @@
 
     // Ensure CORS headers are set on all responses, including errors
     app.use((req, res, next) => {
-        const allowedOrigins = ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000'];
+        const allowedOrigins = ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000', 'https://jade-nougat-d7fdb4.netlify.app/gemini'];
         const origin = req.headers.origin;
         if (allowedOrigins.includes(origin)) {
             res.setHeader('Access-Control-Allow-Origin', origin);
@@ -158,7 +158,7 @@
         } catch (err) {
             console.error('Proxy error:', err);
             // Ensure CORS headers on error
-            const allowedOrigins = ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000'];
+            const allowedOrigins = ['https://hack-calendar.vercel.app', 'http://localhost:3001', 'http://localhost:3000', 'https://jade-nougat-d7fdb4.netlify.app/gemini'];
             const origin = req.headers.origin;
             if (allowedOrigins.includes(origin)) {
                 res.setHeader('Access-Control-Allow-Origin', origin);
