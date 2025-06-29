@@ -878,7 +878,12 @@ async function callGeminiAPI(prompt, provider, outputSchema = null) {
     switch (provider) {
         case 'google':
         case 'groq': // Reroute groq to use the gemini endpoint as well
-            apiUrl = '/gemini'; // Use the local proxy endpoint
+            // Use appropriate URL based on environment
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                apiUrl = '/gemini'; // Local development
+            } else {
+                apiUrl = `${window.location.origin}/gemini`; // Use current domain for production
+            }
             payload = {
                 history: history,
                 prompt: prompt,
